@@ -28,7 +28,7 @@ Key terms in this library are:
 - **Story**: a sequence of steps, which is written in a toml file
 - **Step**: a single action or assertion in a story
 - **Story Trait**: a macro-generated trait that represents a story. it has
-  methods for each step.
+  a method for each step.
 - **Step ID**: a string that identifies a step. it allows us to rewrite a step
   text without breaking existing code.
 - **Story Data**: a structured data that is associated with a story.
@@ -108,7 +108,6 @@ fn main() {
 
 These decisions highlight Narrative's unique aspects, especially in comparison
 to [Gauge](https://gauge.org/), a well-known end-to-end testing framework.
-framework.
 
 ### Narrative is designed to implement stories exclusively in Rust, (though it can still be used for testing projects in other languages.)
 
