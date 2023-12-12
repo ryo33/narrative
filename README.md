@@ -27,8 +27,8 @@ Key terms in this library are:
 
 - **Story**: a sequence of steps, which is written in a toml file
 - **Step**: a single action or assertion in a story
-- **Story Trait**: a macro-generated trait that represents a story. it has
-  a method for each step.
+- **Story Trait**: a macro-generated trait that represents a story. it has a
+  method for each step.
 - **Step ID**: a string that identifies a step. it allows us to rewrite a step
   text without breaking existing code.
 - **Story Data**: a structured data that is associated with a story.
@@ -126,8 +126,6 @@ macro (with a few variants) to implement stories. It's just a small tie between
 a story to a plain Rust code. So, users can compose their own test runners,
 async runtime, or IDE integration with stories.
 
-### Narrative is feature-less
-
 Narrative itself doesn't provide any features other than the core functionality,
 writing stories in TOML files and implementing them in Rust. It lays the
 groundwork for the simplicity and extensibility of this library.
@@ -146,27 +144,50 @@ the core features.
 - parallelization
 - error reporting
 
-### Narrative uses TOML for stories
+### Narrative uses declaration of trait for stories
 
 Gauge uses markdown, and it's a great format for writing specifications,
 documents, and stories mainly written by person than machine. But, it's not the
 best format for expressing structured data. In Narrative, we use TOML for
 stories, and it allows us to write stories in a more structured way.
 
-### Narrative discourages reusing steps
+### Narrative encourages no reusing of steps
 
 We encourage you to write your stories in fresh mind every time without reusing
-existing steps, because we think stories should be self-contained. Copy and
-pasting steps from other stories would cause mixing of contexts, and it leads a
-story to be hard to decipher the key point.
+existing steps, because we think stories should be self-contained. Being the
+situation comes with big wins described below.
 
-Also, reusing steps or group of steps could be a source of complexity. If a step
-is dependent on many stories, it's hard to refine the step without breaking
-other stories. So, self-contained stories are preferred in this library.
+#### Accessibility for Newcomers
 
-At implementation level, we encourage you to share code between stories. But it
-should be done by extracting story-agnostic atomic logic. A step implementation
-should be a composition of atomic logic, and it should not leak the story's
-context in the abstraction of the atomic logic. For example, if a step is about
-clicking a submit button, it should be implemented as a composition of atomic
-logic like `find_element_by(id)`, `click(element)`, and `wait_for_page_load()`.
+It empowers story writers that are not familiar with the existing codebase. They
+don't need to know what steps already exist, to struggle with what steps to use,
+and to worry about whether the chosen step is implemented as they expect.
+
+#### Contextual Clarity
+
+Copying steps from other stories often leads to a mix-up of contexts, and making
+it not easy to decipher the key point of a story. Though we tend to have many
+story have the same steps that shares the same context and implementation, it's
+challenging to maintain the coherency of sharing the same logic while we add,
+remove, modify the stories.
+
+One downside of this approach is that stories could have inconsistency in the
+writing style among them, but it can be mitigated by organizing stories in the
+near each other with have the same contexts. It nudges writers to write stories
+in a consistent way.
+
+#### Simplicity
+
+Reusing steps or group of steps could be a source of complexity. It's nightmare
+to modify a step that is used by many stories without breaking them.
+
+#### Fine-Grained Abstraction
+
+A step is relatively large a unit for reuse or abstraction. Instead of sharing
+the whole a step, we should share code between stories. But it should be done by
+extracting common, story-agnostic, and atomic unit of logic. A step
+implementation should be a composition of such units, and it should not leak the
+story's context in the abstraction. For instance, if a step is about clicking a
+submit button, it might be implemented as a composition of atomic logic like
+`find_element_by(id)`, `click(element)`, and `wait_for_page_load()`, and not to
+leak the context like `click_submit_button()` or `click_button("#submit")`.
