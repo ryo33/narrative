@@ -26,8 +26,4 @@ trait MyFirstStory {
     fn should_have_three_fruits(total: u32);
 }
 
-struct A;
-
-impl std::future::Future for A {}
-
 fn main() {}

@@ -267,10 +267,11 @@ and to worry about whether the chosen step is implemented as they expect.
 #### Contextual Clarity
 
 Copying steps from other stories often leads to a mix-up of contexts, and making
-it not easy to decipher the key point of a story. While we tend to have many
-story have the same steps that shares the same context and implementation, it's
-challenging to maintain the coherency of sharing the same logic while we add,
-remove, modify the stories.
+it not easy to decipher the key point of a story (without attaching proper
+aliases to common steps). While we tend to have many story have the same steps
+that shares the same context and implementation, it's challenging to maintain
+the coherency of sharing the same logic while we add, remove, modify the
+stories.
 
 One downside of this approach is that stories could have inconsistency in the
 writing style among them, but it can be mitigated by organizing stories in the
