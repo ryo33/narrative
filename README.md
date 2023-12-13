@@ -1,6 +1,6 @@
 # Narrative
 
-A simple library for logic implementation based on narrative stories.
+A immensely simple library for story-driven development.
 
 ## Status
 
@@ -8,9 +8,9 @@ WIP to the first release.
 
 ## Overview
 
-Narrative is a library dedicated to developing a logic from stories expressed in
-TOML. Though its primary design is for end-to-end testing, its simplicity
-supports a variety of use cases.
+Narrative is a library dedicated to developing a whole or some part of software
+based on stories expressed in a Rust trait. Though its primary design is for
+end-to-end testing, its simplicity supports a variety of use cases.
 
 ## Goals
 
@@ -29,64 +29,61 @@ Key terms in this library are:
 - **Step**: a single action or assertion in a story
 - **Story Trait**: a macro-generated trait that represents a story. it has a
   method for each step.
-- **Step ID**: a string that identifies a step. it allows us to rewrite a step
-  text without breaking existing code.
-- **Story Data**: a structured data that is associated with a story.
-- **Step Data**: a structured data that is associated with a step.
 
 ## Usage
 
 1. Add [narrative](https://crates.io/crates/narrative) to your cargo
    dependencies.
 
-2. Write your first story in a TOML file.
+2. Write your first story as a trait.
 
-```toml
-[story]
-title = "My first story"
-
-[[step]]
-id = "one apple"
-text = "I have an apple"
-data = { count = 1 }
-[[step]]
-id = "two oranges"
-text = "I have {count} oranges"
-data = { count = 2 }
-[[step]]
-id = "assert three fruits"
-text = "I should have {count} fruits"
-data = { count = 3 }
+```rust
+#[narrative::story]
+trait MyFirstStory {
+    #[step("Hi, I'm a user")]
+    fn as_a_user();
+    #[step("I have an apple", count = 1)]
+    fn have_one_apple(count: u32);
+    #[step("I have {count} orages", count = 2)]
+    fn have_two_oranges(count: u32);
+    #[step("I should have {total} fruits", total = 3)]
+    fn should_have_three_fruits(total: u32);
+}
 ```
+
+Wow, it's neat!
 
 3. Implement the story in Rust.
 
 ```rust
-use narrative::prelude::*;
-
-story!("your-toml-file.toml");
-
-pub struct MyFirstStory {
+pub struct MyFirstStoryImpl {
     apples: u8,
     oranges: u8,
 };
 
-impl NarrativeMyFirstStory for MyFirstStory {
+impl MyFirstStory for MyFirstStoryImpl {
     type Error = ();
 
-    fn step_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
+    fn as_a_user(&mut self) -> Result<(), Self::Error> {
+        println!("Hi, I'm a user");
+    }
+
+    fn have_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
         self.apples = count;
     }
 
-    fn step_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
+    fn have_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
         self.oranges = count;
     }
 
-    fn step_assert_three_fruits(&mut self) -> Result<(), Self::Error> {
-        assert_eq!(self.apples + self.oranges, 3);
+    fn should_have_three_fruits(&mut self, total: u32) -> Result<(), Self::Error> {
+        assert_eq!(self.apples + self.oranges, total);
     }
 }
 ```
+
+You may notice that the signature of the trait methods is a bit different from
+the declaration, but it's fine.
 
 4. Use the story in your code.
 
@@ -104,6 +101,71 @@ fn main() {
 }
 ```
 
+### Subtle but Important Points
+
+There are several points that you should know to use Narrative.
+
+#### Async one is also defined automatically
+
+Story doesn't have to use async keyword, and both sync and async version are
+defined automatically.
+
+```rust
+#[async_trait]
+impl AsyncMyFirstStory for MyFirstStoryImpl {
+    type Error = ();
+    async fn as_a_user(&mut self) -> Result<(), Self::Error> {
+        println!("Hi, I'm a user");
+    }
+    async fn have_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
+        self.apples = count;
+    }
+    async fn have_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
+        self.oranges = count;
+    }
+    async fn should_have_three_fruits(&mut self, total: u32) -> Result<(), Self::Error> {
+        assert_eq!(self.apples + self.oranges, total);
+    }
+}
+```
+
+#### Arguments of the step methods cannot be data structures not defined in standard library
+
+It makes your stories truely independent from any implementation.
+
+#### But, you can use trait coupled to the exact story as arguments
+
+Rust's type system gives us a power to write correct codes without loosing
+productivity, and it's the same in writing stories (in Narrative). To achieve
+the benefits without adding any dependency to the story, we can define new trait
+that strongly coupled to only the story, and use it as an associated type of the
+story trait.
+
+Don't worry the collision of the trait name, it has a separate namespace than
+other stories.
+
+```rust
+#[narrative::story(with = {
+    trait UserId {
+        /// Generate a new user id with random uuid v4.
+        fn new_v4() -> Self;
+    }
+})]
+trait MyFirstStory {
+    type UserId: UserId;
+
+    #[step("I'm a user with id: {id}", id = Self::UserId::new_v4())]
+    fn as_a_user(id: Self::UserId);
+}
+```
+
+#### You can forget about the actual implementation of a story while writing a story
+
+We think that stories should not regard their actual implementations, so noisy
+details like `async`, `&self`, `&mut self`, and `-> Result<(), Self::Error>` are
+not required in the story definition. This surprising behavior can be mitigated
+by using "Implement missing members" feature of rust-analyzer.
+
 ## Design Decisions
 
 These decisions highlight Narrative's unique aspects, especially in comparison
@@ -113,21 +175,22 @@ to [Gauge](https://gauge.org/), a well-known end-to-end testing framework.
 
 Supporting other languages in Narrative would introduce a lot of complexity in
 its design, implementation, and usage. Narrative leverages Rust's core
-functionality and rust-analyzer to provide an enough development experience.
-Rust wouldn't the best language for writing end-to-end tests for everyone, but,
-I believe that it still has advantages in this area, with a robust, yet
-straightforward type system, and vibrant community driven libraries.
+functionality and rust-analyzer to provide rich development experience. Rust
+wouldn't the best language for writing end-to-end tests for everyone, but, We
+believe that it still has advantages in this area, with a great compiler,
+robust, yet straightforward type system, and libraries from the vibrant
+community.
 
 ### Narrative is a library, not a framework
 
-Narrative has no test runner, no plugin system, nor no rich IDE integration.
-Instead of being a framework, Narrative is a library that provides just a single
-macro (with a few variants) to implement stories. It's just a small tie between
-a story to a plain Rust code. So, users can compose their own test runners,
-async runtime, or IDE integration with stories.
+Narrative has no test runner, no plugin system, nor no dedicated language
+server. Instead of being a framework, Narrative is a library that provides just
+a single macro to implement stories. It's just a small tie between a story to a
+plain Rust code. So, users can compose their own test runners or async runtime
+with stories, and can use the full of rust-analyzer's functionality.
 
 Narrative itself doesn't provide any features other than the core functionality,
-writing stories in TOML files and implementing them in Rust. It lays the
+declaring stories as traits and implementing them in Rust code. It lays the
 groundwork for the simplicity and extensibility of this library.
 
 The followings are the missing features in Narrative, and they never be
@@ -147,9 +210,47 @@ the core features.
 ### Narrative uses declaration of trait for stories
 
 Gauge uses markdown, and it's a great format for writing specifications,
-documents, and stories mainly written by person than machine. But, it's not the
-best format for expressing structured data. In Narrative, we use TOML for
-stories, and it allows us to write stories in a more structured way.
+documents, and stories while readable by non programmer. But, it's not the best
+format for expressing data in structured way. We think story is more like a data
+than a document, and it should be expressed in a structured way. With structured
+data, we can leverage the power of software in the processing of them. In
+Narrative, we use traits for expressing stories.
+
+Using markdown for stories has another benefit, that is, it avoids the tight
+coupling between stories and the implementation. If stories depends on specific
+implementation, the story is not pure, and we loose many benefits of
+story-driven development. One of the benefits is that we, including
+non-programmer, can write stories freely without regard to the implementation,
+and it gives us a kind of agility to the development.
+
+But, it's not the case in Narrative though it let you write stories in Rust. In
+Narrative, stories are written as traits, and it has no dependency to the
+implementation, and it's just a contract between the story and the
+implementation. Narrative would not loose the benefits of using markdown, on the
+contray, it would make the situation better.
+
+Narrative explicitly separates the story and the implementation, and it forces
+the direction of the dependency. With markdown, we know that a story is the core
+of the development, but occasionally we forget it or have a kind of cognitive
+dissonance. It appeared to us as obvious experiences in the development, like,
+"we need to know defined tags in the implementation to write a correct story",
+"we have errors on the story editor if no step implementation", or "we failed to
+write the correct story because the steps chosen from the editor's suggestion
+are not implemented as we expect". In narrative, anyone can write stories
+anytime, and stories written can exist as valid real properties with no error
+even if implementation are completely undone.
+
+The concept, a story is a contract to the implementation, makes the development
+process and logical dependency graph clean and simple, and although it requires
+a bit more effort to implement stories, it would give us a lot of benefits in
+the long run of the development.
+
+Someone might think that writing or reading Rust traits is impossible or
+impractical to non-programmer, but we think it more optimistically. We are in
+the era of many people can read and write code with the help of the great tools
+and AIs, and, Personally, I believes clear codes wins documentation both for
+programmers and non-programmers, and I don't think non-programmers cannot read
+and write codes.
 
 ### Narrative encourages no reusing of steps
 
@@ -166,7 +267,7 @@ and to worry about whether the chosen step is implemented as they expect.
 #### Contextual Clarity
 
 Copying steps from other stories often leads to a mix-up of contexts, and making
-it not easy to decipher the key point of a story. Though we tend to have many
+it not easy to decipher the key point of a story. While we tend to have many
 story have the same steps that shares the same context and implementation, it's
 challenging to maintain the coherency of sharing the same logic while we add,
 remove, modify the stories.
