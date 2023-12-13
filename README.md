@@ -25,7 +25,7 @@ end-to-end testing, its simplicity supports a variety of use cases.
 
 Key terms in this library are:
 
-- **Story**: a sequence of steps, which is written in a toml file
+- **Story**: a sequence of steps, which is written as a trait
 - **Step**: a single action or assertion in a story
 - **Story Trait**: a macro-generated trait that represents a story. it has a
   method for each step.
