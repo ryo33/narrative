@@ -1,6 +1,9 @@
+mod attr_syntax;
+mod output;
 mod story;
 mod story_syntax;
 
+use attr_syntax::StoryAttr;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use story_syntax::ItemStory;
@@ -20,13 +23,14 @@ pub fn step(
 
 #[proc_macro_attribute]
 pub fn story(
-    _attr: proc_macro::TokenStream,
+    attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let item = parse_macro_input!(input as ItemStory);
-    process_story(item).into()
+    let attr = parse_macro_input!(attr as StoryAttr);
+    let story = parse_macro_input!(input as ItemStory);
+    process_story(attr, story).into()
 }
 
-fn process_story(story: ItemStory) -> TokenStream {
+fn process_story(attr: StoryAttr, story: ItemStory) -> TokenStream {
     quote! {}
 }

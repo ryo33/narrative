@@ -1,4 +1,4 @@
-#[narrative::story]
+#[narrative::story("My First Story")]
 trait MyFirstStory {
     #[step("Hi, I'm a user")]
     fn as_a_user();
