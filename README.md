@@ -38,7 +38,7 @@ Key terms in this library are:
 2. Write your first story as a trait.
 
 ```rust
-#[narrative::story]
+#[narrative::story("This is my first story")]
 trait MyFirstStory {
     #[step("Hi, I'm a user")]
     fn as_a_user();
@@ -137,27 +137,33 @@ It makes your stories truely independent from any implementation.
 
 Rust's type system gives us a power to write correct codes without loosing
 productivity, and it's the same in writing stories (in Narrative). To achieve
-the benefits without adding any dependency to the story, we can define new trait
-that strongly coupled to only the story, and use it as an associated type of the
-story trait.
+the benefits without adding any dependency to the story, we can define new
+struct or trait that strongly coupled to only the story, and use it as an
+associated type of the story trait.
 
-Don't worry the collision of the trait name, it has a separate namespace than
-other stories.
+Don't worry the collision of the trait/struct names, it has a separate namespace
+than other stories.
 
 ```rust
-#[narrative::story(with = {
+#[narrative::story("This is my first story")]
+trait MyFirstStory {
+    struct UserName(String);
+
     trait UserId {
         /// Generate a new user id with random uuid v4.
         fn new_v4() -> Self;
     }
-})]
-trait MyFirstStory {
-    type UserId: UserId;
 
-    #[step("I'm a user with id: {id}", id = Self::UserId::new_v4())]
-    fn as_a_user(id: Self::UserId);
+    let user_id = Self::UserId::new_v4();
+
+    #[step("I'm a user with id: {id}", id = user_id, name = UserName("Alice".to_string()))]
+    fn as_a_user(id: Self::UserId, name: UserName);
 }
 ```
+
+It's really weird for who knows correct Rust syntax, but it's the better one
+among alternative ideas to do the same thing, defining a new struct or trait in
+the same place.
 
 #### You can forget about the actual implementation of a story while writing a story
 
