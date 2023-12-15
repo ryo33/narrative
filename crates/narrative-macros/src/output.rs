@@ -1,7 +1,6 @@
 mod derive_attr;
 mod enum_def;
 mod step_fn;
-mod step_iter;
 mod story_ext;
 mod struct_def;
 mod trait_def;

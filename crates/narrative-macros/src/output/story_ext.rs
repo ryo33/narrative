@@ -26,15 +26,17 @@ mod tests {
         };
         let actual = generate(&story_syntax);
         let expected = quote! {
-            impl narrative::story::StoryExt for User {
-                type Step = UserStoryStep;
-                type Steps<'a> = UserStorySteps<'a>;
-                where
-                    Self: 'a;
-                fn narrate(&self) {
-                }
-                fn run_all(&mut self);
-                fn steps(&mut self) -> Self::Steps<'_>;
+            impl narrative::story::StoryExt for UserStory {
+                type Error: Self::Error;
+                fn narrate(&self) -> Narration;
+                fn run_all(self);
+                fn steps(self) -> StorySteps<Self, Self::Error>;
+            }
+
+            impl IntoIterator for UserStory {
+                type Item = StoryStep<Self, Self::Error>;
+                type IntoIter = StorySteps<Self, Self::Error>;
+                fn into_iter(self) -> Self::IntoIter;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
