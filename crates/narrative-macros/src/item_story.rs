@@ -4,6 +4,8 @@ use syn::{
     Token,
 };
 
+use crate::step_attr_syntax::StepAttr;
+
 pub struct ItemStory {
     pub trait_token: Token![trait],
     pub ident: syn::Ident,
@@ -12,11 +14,16 @@ pub struct ItemStory {
 }
 
 pub enum StoryItem {
-    Step(syn::TraitItemFn),
+    Step(StoryStep),
     Trait(syn::ItemTrait),
     Struct(syn::ItemStruct),
     Enum(syn::ItemEnum),
     Let(syn::ExprLet),
+}
+
+pub struct StoryStep {
+    pub attr: StepAttr,
+    pub inner: syn::TraitItemFn,
 }
 
 impl Parse for ItemStory {
@@ -38,9 +45,18 @@ impl Parse for ItemStory {
     }
 }
 
+impl Parse for StoryStep {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attr = input.parse()?;
+        let inner = input.parse()?;
+        Ok(Self { attr, inner })
+    }
+}
+
 impl Parse for StoryItem {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if let Ok(step) = input.parse().map(Self::Step) {
+            // FIXME:
             Ok(step)
         } else if let Ok(trait_) = input.parse().map(Self::Trait) {
             Ok(trait_)
@@ -72,7 +88,7 @@ mod tests {
         let StoryItem::Step(step) = syn::parse2(input).unwrap() else {
             panic!("Expected a step");
         };
-        assert_eq!(step.sig.ident, "as_a_user");
+        assert_eq!(step.inner.sig.ident, "as_a_user");
     }
 
     #[test]

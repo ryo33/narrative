@@ -1,14 +1,60 @@
-mod narrate;
-mod run_all;
-mod steps;
+// These methods are separated from the real story trait not to provide default
+// implementations for them. It supresses "Implement default members for trait" action.
+// Theorically, instead of this, we can use a sealed default implementation, but it's not friendly
+// interface for narrative.
+// It's a wrapper of the story context
 
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::story_syntax::ItemStory;
+use crate::{item_story::ItemStory, story_attr_syntax::StoryAttr, Asyncness};
 
-pub fn generate(input: &ItemStory) -> TokenStream {
-    quote! {}
+pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory, asyncness: Asyncness) -> TokenStream {
+    let ident = &input.ident;
+    let story_title = &attr.title;
+    quote! {
+        pub trait StoryExt {
+            type Error: std::error::Error;
+            /// Returns the title of the story.
+            fn story_title() -> String;
+            /// Returns the identifier of the story.
+            fn story_ident() -> &'static str;
+            /// Returns the steps of the story.
+            fn steps() -> Steps<Self, Self::Error>;
+            /// Run all steps in the story. It's a shortcut for iterating over the steps.
+            fn run_all(self) -> Result<(), narrative::RunAllError<Self>>;
+            /// Get the context of this story.
+            fn context() -> StoryContext<Self>;
+        }
+        impl <T: #ident> StoryExt for T {
+            type Error: T::Error;
+            fn story_title() -> String {
+                #story_title.to_string()
+            }
+            fn story_ident() -> &'static str {
+                stringify!(#ident)
+            }
+            fn steps() -> Steps<Self, Self::Error> {
+                self.context().steps()
+            }
+            fn run_all(self) -> Result<(), narrative::RunAllError<Self>> {
+                for step in Self::steps() {
+                    if let Err(e) = step.run(&mut self) {
+                        return Err(narrative::RunAllError {
+                            step_id: step.id,
+                            error: e,
+                        });
+                    }
+                }
+                Ok(())
+            }
+            fn context(&self) -> StoryContext {
+                StoryContext {
+                    phantom: std::marker::PhantomData,
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -17,26 +63,61 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_generate() {
+    fn test_generate_sync() {
+        let attr = syn::parse_quote! {
+            "User story title"
+        };
         let story_syntax = syn::parse_quote! {
             trait UserStory {
+                #[step("step1")]
                 fn step1();
-                fn step2();
+                #[step("step2: {name}", name = "ryo")]
+                fn step2(name: &str);
             }
         };
-        let actual = generate(&story_syntax);
+        let actual = generate(&attr, &story_syntax, Asyncness::Sync);
         let expected = quote! {
-            impl narrative::story::StoryExt for UserStory {
-                type Error: Self::Error;
-                fn narrate(&self) -> Narration;
-                fn run_all(self);
-                fn steps(self) -> StorySteps<Self, Self::Error>;
+            pub trait StoryExt {
+                type Error: std::error::Error;
+                // This is not &str for future extensibility.
+                /// Returns the title of the story.
+                fn story_title() -> String;
+                /// Returns the identifier of the story.
+                fn story_ident() -> &'static str;
+                /// Returns the steps of the story.
+                fn steps() -> Steps<Self, Self::Error>;
+                /// Run all steps in the story. It's a shortcut for iterating over the steps.
+                fn run_all(self) -> Result<(), narrative::RunAllError<Self>>;
+                /// Get the context of this story.
+                fn context() -> StoryContext<Self>;
             }
-
-            impl IntoIterator for UserStory {
-                type Item = StoryStep<Self, Self::Error>;
-                type IntoIter = StorySteps<Self, Self::Error>;
-                fn into_iter(self) -> Self::IntoIter;
+            impl <T: UserStory> StoryExt for T {
+                type Error: T::Error;
+                fn story_title() -> String {
+                    "User story title".to_string()
+                }
+                fn story_ident() -> &'static str {
+                    stringify!(UserStory)
+                }
+                fn steps() -> Steps<Self, Self::Error> {
+                    self.context().steps()
+                }
+                fn run_all(self) -> Result<(), narrative::RunAllError<Self>> {
+                    for step in Self::steps() {
+                        if let Err(e) = step.run(&mut self) {
+                            return Err(narrative::RunAllError {
+                                step_id: step.id,
+                                error: e,
+                            });
+                        }
+                    }
+                    Ok(())
+                }
+                fn context(&self) -> StoryContext {
+                    StoryContext {
+                        phantom: std::marker::PhantomData,
+                    }
+                }
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());

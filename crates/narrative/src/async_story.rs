@@ -1,8 +1,7 @@
-use crate::step::{Step, StepId, Steps};
+use crate::async_step::{Step, StepId, Steps};
 
-
-/// A trait for handing a story in general.
-pub trait StoryContext {
+#[async_trait::async_trait]
+pub trait AsyncStoryContext {
     type Story;
     type StepId: StepId;
     type Step: Step;
@@ -16,7 +15,7 @@ pub trait StoryContext {
     /// Returns the steps of the story.
     fn steps() -> Self::Steps;
     /// Run all steps in the story. It's a shortcut for iterating over the steps.
-    fn run_all(story: Self::Story) -> Result<(), RunAllError<Self::StepId, Self::Error>>;
+    async fn run_all(story: Self::Story) -> Result<(), RunAllError<Self::StepId, Self::Error>>;
 }
 
 // Fields are public because this type is just a replacement of (StepId, S::Error).

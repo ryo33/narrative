@@ -8,7 +8,7 @@ mod kw {
 }
 
 pub struct StoryAttr {
-    title: syn::LitStr,
+    pub title: syn::LitStr,
 }
 
 impl Parse for StoryAttr {

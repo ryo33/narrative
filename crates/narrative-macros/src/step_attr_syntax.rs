@@ -5,19 +5,19 @@ mod kw {
 }
 
 pub struct StepAttr {
-    pound_symbol: syn::Token![#],
-    bracket: syn::token::Bracket,
-    step: kw::step,
-    paren: syn::token::Paren,
-    text: syn::LitStr,
-    args: Vec<StepAttrArgs>,
+    pub pound_symbol: syn::Token![#],
+    pub bracket: syn::token::Bracket,
+    pub step: kw::step,
+    pub paren: syn::token::Paren,
+    pub text: syn::LitStr,
+    pub args: Vec<StepAttrArgs>,
 }
 
 pub struct StepAttrArgs {
-    comma_token: Option<syn::Token![,]>,
-    ident: String,
-    equal_token: syn::Token![=],
-    value: syn::Expr,
+    pub comma_token: Option<syn::Token![,]>,
+    pub ident: String,
+    pub equal_token: syn::Token![=],
+    pub value: syn::Expr,
 }
 
 impl Parse for StepAttr {
