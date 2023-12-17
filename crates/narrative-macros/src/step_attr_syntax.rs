@@ -15,7 +15,7 @@ pub struct StepAttr {
 
 pub struct StepAttrArgs {
     pub comma_token: Option<syn::Token![,]>,
-    pub ident: String,
+    pub ident: syn::Ident,
     pub equal_token: syn::Token![=],
     pub value: syn::Expr,
 }
@@ -47,7 +47,7 @@ impl Parse for StepAttr {
 impl Parse for StepAttrArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let comma_token = input.parse::<Option<syn::Token![,]>>()?;
-        let ident = input.parse::<syn::Ident>()?.to_string();
+        let ident = input.parse::<syn::Ident>()?;
         let equal_token = input.parse::<syn::Token![=]>()?;
         let value = input.parse::<syn::Expr>()?;
         Ok(Self {

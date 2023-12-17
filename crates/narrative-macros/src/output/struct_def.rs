@@ -49,7 +49,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub struct User;
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -65,7 +65,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub struct User {
                 pub id: i32,
                 pub name: String,
@@ -81,7 +81,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub struct User(pub i32, pub String);
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -99,7 +99,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub struct User {
                 #[keep_this]
                 #[keep_this2]
@@ -117,7 +117,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub struct User(#[keep_this] #[keep_this2] pub i32, pub String);
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -133,7 +133,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub struct User<T, U> {
                 pub id: i32,
                 pub name: String,

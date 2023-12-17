@@ -1,70 +1,34 @@
+// T and E can be any type by implementing the story trait in any way.
 pub trait Step {
-    type Story;
-    type Error: std::error::Error;
-    type StepId: StepId;
-    fn run(&self, story: &mut Self::Story) -> Result<(), Self::Error>;
+    type Id: StepId;
+    type Arg: StepArg + 'static;
+    type ArgIter: Iterator<Item = &'static Self::Arg>;
     fn step_text(&self) -> String;
-    fn args(&self) -> StepArgs;
-    fn id(&self) -> Self::StepId;
+    fn args(&self) -> Self::ArgIter;
+    fn id(&self) -> Self::Id;
+}
+
+pub trait StepRun<T, E>: Step {
+    fn run(&mut self, story: &mut T) -> Result<(), E>;
+}
+
+#[async_trait::async_trait]
+pub trait StepRunAsync<T, E>: Step {
+    async fn run_async(self, story: &mut T) -> Result<(), E>;
 }
 
 pub trait StepId: Copy + Clone + PartialEq + Eq + PartialOrd + Ord + 'static {
     fn index(&self) -> usize;
 }
 
-pub trait Steps: IntoIterator {
-    type Step: Step;
-    fn get(&self, id: <Self::Step as Step>::StepId) -> &'static Self::Step;
-    fn iter(&self) -> std::slice::Iter<'static, Self::Step>;
-}
-
-// This is concrete type because there nothing to be generic or hidden.
-#[derive(Clone, Copy)]
-pub struct StepArgs {
-    args: &'static [StepArg],
-}
-
-impl StepArgs {
-    pub fn new(args: &'static [StepArg]) -> Self {
-        Self { args }
-    }
-    pub fn iter(&self) -> std::slice::Iter<'static, StepArg> {
-        self.args.iter()
-    }
-}
-
-impl IntoIterator for StepArgs {
-    type Item = &'static StepArg;
-    type IntoIter = std::slice::Iter<'static, StepArg>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.args.iter()
-    }
-}
-
-// This is concrete type because there nothing to be generic or hidden.
-pub struct StepArg {
-    name: &'static str,
-    ty: &'static str,
-    value_fn: fn() -> String,
-}
-
-impl StepArg {
-    /// This is intended to be used by narrative-macros
-    pub fn new(name: &'static str, ty: &'static str, value_fn: fn() -> String) -> Self {
-        Self { name, ty, value_fn }
-    }
-
-    pub fn name(&self) -> &'static str {
-        self.name
-    }
-
-    pub fn ty(&self) -> &'static str {
-        self.ty
-    }
-
+pub trait StepArg: Clone + std::fmt::Debug {
+    /// Returns the name of the argument.
+    fn name(&self) -> &'static str;
+    /// Returns the type of the argument.
+    fn ty(&self) -> &'static str;
     /// Returns the debug representation of the value.
-    pub fn value(&self) -> String {
-        (self.value_fn)()
-    }
+    fn debug_value(&self) -> String;
+    /// Serializes the value to the given serializer.
+    fn serialize_value<T: serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error>;
+    // TODO: fn schema() -> Schema;
 }

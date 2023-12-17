@@ -15,6 +15,7 @@ mod step_fn;
 mod story_trait;
 
 mod dummy_environment;
+mod step_args;
 mod step_types;
 mod story_context;
 mod story_ext;
@@ -28,9 +29,10 @@ use crate::{
     Asyncness,
 };
 
-pub fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
+pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> crate::Result<TokenStream> {
     let base_trait = base_trait::generate(item);
     let story_trait = story_trait::generate(item, Asyncness::Sync);
+    let step_args = step_args::generate(item);
     let step_types = step_types::generate(item, Asyncness::Sync);
     let story_context = story_context::generate(item, Asyncness::Sync);
     let story_ext = story_ext::generate(attr, item, Asyncness::Sync);
@@ -44,16 +46,17 @@ pub fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
         StoryItem::Trait(item) => Some(trait_def::generate(item)),
         _ => None,
     });
-    quote! {
+    Ok(quote! {
         #base_trait
         #story_trait
+        #step_args
         #step_types
         #story_context
         #story_ext
-        #local_type_impls
-        #local_type_assertions
-        #unused_assignments
+        // #local_type_impls
+        // #local_type_assertions
+        // #unused_assignments
         #dummy_environment
         #(#definitions)*
-    }
+    })
 }

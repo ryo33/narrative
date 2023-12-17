@@ -8,6 +8,7 @@ pub mod story;
 pub use async_trait::async_trait;
 pub use independent_type::IndependentType;
 pub use narrative_macros::story;
+pub use serde::Serialize;
 
 pub struct RunAllError<T, E: std::error::Error> {
     pub step_id: T,

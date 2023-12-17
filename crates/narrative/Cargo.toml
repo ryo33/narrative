@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 narrative-macros = { path = "../narrative-macros" }
 async-trait = "0.1"
+serde = { version = "1", features = ["derive", "rc"] }
 
 [[example]]
 name = "my_first_story"

@@ -31,7 +31,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub enum User {
                 Admin,
                 Developer(String),
@@ -60,7 +60,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub enum User {
                 #[keep_this]
                 #[keep_this2]
@@ -89,7 +89,7 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
             pub enum User<T, U> {
                 Admin,
                 Developer(String),

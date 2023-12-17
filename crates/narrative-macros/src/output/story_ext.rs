@@ -13,7 +13,7 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory, asyncness: Asyncness
     let ident = &input.ident;
     let story_title = &attr.title;
     quote! {
-        pub trait StoryExt {
+        pub trait StoryExt: Sized {
             type Error: std::error::Error;
             /// Returns the title of the story.
             fn story_title() -> String;
@@ -22,12 +22,12 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory, asyncness: Asyncness
             /// Returns the steps of the story.
             fn steps() -> Steps<Self, Self::Error>;
             /// Run all steps in the story. It's a shortcut for iterating over the steps.
-            fn run_all(self) -> Result<(), narrative::RunAllError<Self>>;
+            fn run_all(self) -> Result<(), narrative::RunAllError<StepId, Self::Error>>;
             /// Get the context of this story.
             fn context() -> StoryContext<Self>;
         }
         impl <T: #ident> StoryExt for T {
-            type Error: T::Error;
+            type Error = T::Error;
             fn story_title() -> String {
                 #story_title.to_string()
             }
@@ -37,7 +37,7 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory, asyncness: Asyncness
             fn steps() -> Steps<Self, Self::Error> {
                 self.context().steps()
             }
-            fn run_all(self) -> Result<(), narrative::RunAllError<Self>> {
+            fn run_all(self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                 for step in Self::steps() {
                     if let Err(e) = step.run(&mut self) {
                         return Err(narrative::RunAllError {
@@ -48,7 +48,7 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory, asyncness: Asyncness
                 }
                 Ok(())
             }
-            fn context(&self) -> StoryContext {
+            fn context(&self) -> StoryContext<Self> {
                 StoryContext {
                     phantom: std::marker::PhantomData,
                 }
@@ -77,7 +77,7 @@ mod tests {
         };
         let actual = generate(&attr, &story_syntax, Asyncness::Sync);
         let expected = quote! {
-            pub trait StoryExt {
+            pub trait StoryExt: Sized {
                 type Error: std::error::Error;
                 // This is not &str for future extensibility.
                 /// Returns the title of the story.
@@ -87,12 +87,12 @@ mod tests {
                 /// Returns the steps of the story.
                 fn steps() -> Steps<Self, Self::Error>;
                 /// Run all steps in the story. It's a shortcut for iterating over the steps.
-                fn run_all(self) -> Result<(), narrative::RunAllError<Self>>;
+                fn run_all(self) -> Result<(), narrative::RunAllError<StepId, Self::Error>>;
                 /// Get the context of this story.
                 fn context() -> StoryContext<Self>;
             }
             impl <T: UserStory> StoryExt for T {
-                type Error: T::Error;
+                type Error = T::Error;
                 fn story_title() -> String {
                     "User story title".to_string()
                 }
@@ -102,7 +102,7 @@ mod tests {
                 fn steps() -> Steps<Self, Self::Error> {
                     self.context().steps()
                 }
-                fn run_all(self) -> Result<(), narrative::RunAllError<Self>> {
+                fn run_all(self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                     for step in Self::steps() {
                         if let Err(e) = step.run(&mut self) {
                             return Err(narrative::RunAllError {
@@ -113,7 +113,7 @@ mod tests {
                     }
                     Ok(())
                 }
-                fn context(&self) -> StoryContext {
+                fn context(&self) -> StoryContext<Self> {
                     StoryContext {
                         phantom: std::marker::PhantomData,
                     }

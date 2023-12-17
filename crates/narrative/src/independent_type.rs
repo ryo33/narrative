@@ -4,7 +4,8 @@ mod private {
     // This is a trait implemented for types that can be used without dependencies.
     // Debug is required to format step arguments.
     // Clone is required to ensure the semantics of shared arguments are replicated.
-    pub trait SealedIndependentType: std::fmt::Debug + Clone {}
+    // Serialize is required to send arguments to external runners.
+    pub trait SealedIndependentType: std::fmt::Debug + Clone + serde::Serialize {}
 }
 use private::SealedIndependentType;
 
@@ -29,6 +30,7 @@ macro_rules! local {
         )*
     };
 }
+
 macro_rules! local_a {
     ($gen1:tt; $($ty:ty),*) => {
         $(
@@ -36,6 +38,21 @@ macro_rules! local_a {
         )*
     };
 }
+
+macro_rules! local_tuple {
+    ($($ty:ident),*) => {
+        impl<$($ty: SealedIndependentType),*> SealedIndependentType for ($($ty,)*) {}
+    };
+}
+
+macro_rules! local_array {
+    ($($num:tt),*) => {
+        $(
+            impl<T: SealedIndependentType> SealedIndependentType for [T; $num] {}
+        )*
+    };
+}
+
 local!(
     String,
     &str,
@@ -73,8 +90,8 @@ local!(
 );
 local!(
     std::time::Duration,
-    std::time::Instant,
-    std::time::SystemTime
+    std::time::SystemTime,
+    std::path::PathBuf
 );
 local!(std::ffi::OsString, std::ffi::CString);
 local!(
@@ -85,43 +102,43 @@ local!(
     std::net::SocketAddrV4,
     std::net::SocketAddrV6
 );
-local!(
-    std::fs::FileType,
-    std::fs::OpenOptions,
-    std::fs::Permissions,
-    std::path::PathBuf
-);
-local!(
-    std::alloc::Layout,
-    std::alloc::LayoutError,
-    std::alloc::System,
-    std::env::VarError,
-    std::io::SeekFrom,
-    std::num::FpCategory,
-    std::any::TypeId,
-    std::cmp::Ordering,
-    std::thread::Thread,
-    std::thread::ThreadId,
-    std::io::ErrorKind
-);
-local!(T; &[T], Vec<T>, Option<T>, Box<T>, std::pin::Pin<T>, std::rc::Rc<T>, std::sync::Arc<T>, std::cell::RefCell<T>);
+local!(T; &[T], Vec<T>, Option<T>, Box<T>, std::marker::PhantomData<T>, std::rc::Rc<T>, std::sync::Arc<T>, std::cell::RefCell<T>);
+
+local!(T; std::ops::Range<T>, std::ops::RangeFrom<T>, std::ops::RangeTo<T>, std::ops::RangeInclusive<T>, std::ops::Bound<T>);
+
 local!(T; std::collections::BTreeSet<T>, std::collections::LinkedList<T>, std::collections::VecDeque<T>, std::collections::BinaryHeap<T>);
-local!(T; std::ops::Range<T>, std::ops::RangeFrom<T>, std::ops::RangeTo<T>, std::ops::RangeInclusive<T>, std::ops::RangeToInclusive<T>, std::ops::Bound<T>);
-local!(T; std::future::Pending<T>, std::future::Ready<T>, std::iter::Empty<T>, std::iter::Once<T>, std::iter::Repeat<T>);
-local!(T; std::io::Cursor<T>, std::marker::PhantomData<T>, std::mem::Discriminant<T>, std::ptr::NonNull<T>, std::sync::mpsc::Sender<T>);
+
+impl<K, V> SealedIndependentType for std::collections::HashMap<K, V>
+where
+    K: SealedIndependentType + PartialEq + Eq + std::hash::Hash,
+    V: SealedIndependentType + PartialEq,
+{
+}
+impl<T> SealedIndependentType for std::collections::HashSet<T> where
+    T: SealedIndependentType + PartialEq + Eq + std::hash::Hash
+{
+}
 
 local!(T, U; Result<T, U>, std::collections::BTreeMap<T, U>);
 
 local_a!(T; &'a T, std::borrow::Cow<'a,T>);
 
-impl<const N: usize> SealedIndependentType for [u8; N] {}
-impl<K, V> SealedIndependentType for std::collections::HashMap<K, V>
-where
-    K: std::fmt::Debug + Clone + PartialEq + Eq + std::hash::Hash,
-    V: std::fmt::Debug + Clone + PartialEq,
-{
-}
-impl<T> SealedIndependentType for std::collections::HashSet<T> where
-    T: std::fmt::Debug + Clone + PartialEq + Eq + std::hash::Hash
-{
-}
+local_tuple!(A);
+local_tuple!(A, B);
+local_tuple!(A, B, C);
+local_tuple!(A, B, C, D);
+
+local_tuple!(A, B, C, D, E);
+local_tuple!(A, B, C, D, E, F);
+local_tuple!(A, B, C, D, E, F, G);
+local_tuple!(A, B, C, D, E, F, G, H);
+
+local_tuple!(A, B, C, D, E, F, G, H, I);
+local_tuple!(A, B, C, D, E, F, G, H, I, J);
+local_tuple!(A, B, C, D, E, F, G, H, I, J, K);
+local_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
+
+local_array!(
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31, 32
+);
