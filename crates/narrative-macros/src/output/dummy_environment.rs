@@ -4,26 +4,25 @@ use quote::{format_ident, quote};
 use crate::{item_story::ItemStory, output::step_fn, Asyncness};
 
 pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
-    let async_trait = match asyncness {
-        Asyncness::Sync => quote! {},
-        Asyncness::Async => quote!(#[narrative::async_trait]),
-    };
     let ident = match asyncness {
         Asyncness::Sync => input.ident.clone(),
         Asyncness::Async => format_ident!("Async{}", input.ident),
     };
-    let steps = input.items.iter().filter_map(|item| match item {
-        crate::item_story::StoryItem::Step(step) => {
-            Some(step_fn::generate(step, asyncness, Some(quote! {Ok(())})))
-        }
-        _ => None,
-    });
+    let steps = input.steps().map(|step| step_fn::generate(step, asyncness));
+    let body = match asyncness {
+        Asyncness::Sync => quote! {Ok(())},
+        Asyncness::Async => quote! {Box::pin(async { Ok(()) })},
+    };
     quote! {
-        #async_trait
         #[allow(unused_variables)]
         impl #ident for narrative::environment::DummyEnvironment {
             type Error = std::convert::Infallible;
-            #(#[inline] #steps)*
+            #(
+            #[inline]
+            #steps {
+                #body
+            }
+            )*
         }
     }
 }
@@ -73,17 +72,16 @@ mod tests {
         };
         let actual = generate(&story_syntax, Asyncness::Async);
         let expected = quote! {
-            #[narrative::async_trait]
             #[allow(unused_variables)]
             impl AsyncUserStory for narrative::environment::DummyEnvironment {
                 type Error = std::convert::Infallible;
                 #[inline]
-                async fn step1(&mut self) -> Result<(), Self::Error> {
-                    Ok(())
+                fn step1(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
+                    Box::pin(async { Ok(()) })
                 }
                 #[inline]
-                async fn step2(&mut self) -> Result<(), Self::Error> {
-                    Ok(())
+                fn step2(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
+                    Box::pin(async { Ok(()) })
                 }
             }
         };

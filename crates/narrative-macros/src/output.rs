@@ -38,6 +38,7 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     let step_args = step_args::generate(item);
     let step_types = step_types::generate(item);
     let story_context = story_context::generate(attr, item);
+    let context_ext = story_context::generate_ext(item);
     let story_ext = story_ext::generate(item, Asyncness::Sync);
     let async_story_ext = story_ext::generate(item, Asyncness::Async);
     let local_type_impls = local_type_impls::generate(item);
@@ -59,6 +60,7 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
             #step_args
             #step_types
             #story_context
+            #context_ext
             #story_ext
             #async_story_ext
             #local_type_impls
@@ -68,10 +70,14 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
             #(#definitions)*
         }
         #[allow(unused_imports)]
+        use narrative::prelude::*;
+        #[allow(unused_imports)]
         pub use #mod_ident::#ident;
         #[allow(unused_imports)]
         pub use #mod_ident::#async_ident;
         pub use #mod_ident::StoryExt as _;
         pub use #mod_ident::AsyncStoryExt as _;
+        pub use #mod_ident::ContextExt as _;
+        pub use #mod_ident::AsyncContextExt as _;
     }
 }

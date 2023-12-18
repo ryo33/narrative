@@ -48,8 +48,7 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
             #sig -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                 use narrative::step::Step;
                 #use_run
-                use narrative::story::StoryContext;
-                for step in Self::context().steps() {
+                for step in narrative::story::StoryContext::steps(&StoryContext::default()) {
                     if let Err(e) = #step_run {
                         return Err(narrative::RunAllError {
                             step_id: step.id(),
@@ -86,8 +85,7 @@ mod tests {
                 fn run_all(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                     use narrative::step::Step;
                     use narrative::step::Run;
-                    use narrative::story::StoryContext;
-                    for step in Self::context().steps() {
+                    for step in narrative::story::StoryContext::steps(&StoryContext::default()) {
                         if let Err(e) = step.run(self) {
                             return Err(narrative::RunAllError {
                                 step_id: step.id(),
@@ -122,8 +120,7 @@ mod tests {
                 async fn run_all_async(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                     use narrative::step::Step;
                     use narrative::step::RunAsync;
-                    use narrative::story::StoryContext;
-                    for step in Self::context().steps() {
+                    for step in narrative::story::StoryContext::steps(&StoryContext::default()) {
                         if let Err(e) = step.run_async(self).await {
                             return Err(narrative::RunAllError {
                                 step_id: step.id(),

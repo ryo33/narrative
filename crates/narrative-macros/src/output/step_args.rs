@@ -169,7 +169,7 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             #[inline]
             pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                 #[allow(unused_imports)]
-                use serde::Serialize;
+                use narrative::serde::Serialize;
                 #[allow(unnecessary_cast)]
                 match self {
                     #(#serialize_arms)*
@@ -222,7 +222,7 @@ mod tests {
                 #[inline]
                 pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     #[allow(unused_imports)]
-                    use serde::Serialize;
+                    use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
                     match self {
                         _ => todo!(),
@@ -271,7 +271,7 @@ mod tests {
                 #[inline]
                 pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     #[allow(unused_imports)]
-                    use serde::Serialize;
+                    use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
                     match self {
                         Self::name => ("ryo" as &str).serialize(serializer),
@@ -327,7 +327,7 @@ mod tests {
                 #[inline]
                 pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     #[allow(unused_imports)]
-                    use serde::Serialize;
+                    use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
                     match self {
                         Self::id => (UserId::new() as UserId).serialize(serializer),
@@ -384,7 +384,7 @@ mod tests {
                 #[inline]
                 pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     #[allow(unused_imports)]
-                    use serde::Serialize;
+                    use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
                     match self {
                         Self::id => (UserId::new() as UserId).serialize(serializer),

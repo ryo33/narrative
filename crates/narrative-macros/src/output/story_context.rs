@@ -1,7 +1,7 @@
 // &self in these methods are not necessary but it's for future extensibility and friendly API.
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::{item_story::ItemStory, story_attr_syntax::StoryAttr};
 
@@ -38,6 +38,41 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
             #[inline]
             fn steps(&self) -> Self::StepIter {
                 [#(Step::#step_names),*].iter()
+            }
+        }
+    }
+}
+
+pub(crate) fn generate_ext(input: &ItemStory) -> TokenStream {
+    let ident = &input.ident;
+    let async_ident = format_ident!("Async{}", input.ident);
+    quote! {
+        pub trait ContextExt {
+            fn context() -> StoryContext;
+            fn get_context(&self) -> StoryContext;
+        }
+        pub trait AsyncContextExt {
+            fn context() -> StoryContext;
+            fn get_context(&self) -> StoryContext;
+        }
+        impl <T: #ident> ContextExt for T {
+            #[inline]
+            fn context() -> StoryContext {
+                StoryContext::default()
+            }
+            #[inline]
+            fn get_context(&self) -> StoryContext {
+                StoryContext::default()
+            }
+        }
+        impl <T: #async_ident> AsyncContextExt for T {
+            #[inline]
+            fn context() -> StoryContext {
+                StoryContext::default()
+            }
+            #[inline]
+            fn get_context(&self) -> StoryContext {
+                StoryContext::default()
             }
         }
     }

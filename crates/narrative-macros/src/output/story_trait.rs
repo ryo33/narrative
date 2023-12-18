@@ -1,3 +1,8 @@
+// We use Pin<Box<dyn Future>> instead of async_trait in async mode.
+// This is because we encourage user to "Implement missing members" in IDE, and I want API to be
+// clean.
+// If async trait could be stabilized, we can use it instead.
+
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
@@ -8,19 +13,14 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         Asyncness::Sync => input.ident.clone(),
         Asyncness::Async => format_ident!("Async{}", input.ident),
     };
-    let async_trait = match asyncness {
-        Asyncness::Sync => quote! {},
-        Asyncness::Async => quote!(#[narrative::async_trait]),
-    };
     let steps = input.items.iter().filter_map(|item| match item {
-        crate::item_story::StoryItem::Step(step) => Some(step_fn::generate(step, asyncness, None)),
+        crate::item_story::StoryItem::Step(step) => Some(step_fn::generate(step, asyncness)),
         _ => None,
     });
     quote! {
-        #async_trait
         pub trait #ident: BaseTrait + Send {
             type Error: std::error::Error;
-            #(#steps)*
+            #(#steps;)*
         }
     }
 }
@@ -63,11 +63,10 @@ mod tests {
         };
         let actual = generate(&input, Asyncness::Async);
         let expected = quote! {
-            #[narrative::async_trait]
             pub trait AsyncUserStory: BaseTrait + Send {
                 type Error: std::error::Error;
-                async fn step1(&mut self) -> Result<(), Self::Error>;
-                async fn step2(&mut self, user_id: UserId) -> Result<(), Self::Error>;
+                fn step1(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>>;
+                fn step2(&mut self, user_id: UserId) -> narrative::BoxFuture<'_, Result<(), Self::Error>>;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
