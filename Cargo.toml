@@ -2,4 +2,3 @@
 
 resolver = "2"
 members = ["crates/*", "examples"]
-default-members = ["crates/*"]

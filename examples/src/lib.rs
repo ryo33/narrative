@@ -41,9 +41,5 @@ impl MyFirstStory for MyFirstStoryEnv {
 
 #[test]
 fn test() {
-    let mut story = MyFirstStoryEnv { sum: 0 };
-    story.get_context().steps().for_each(|step| {
-        step.run(&mut story).unwrap();
-    });
-    MyFirstStoryEnv::context();
+    let _ = MyFirstStoryEnv { sum: 0 }.run_all();
 }
