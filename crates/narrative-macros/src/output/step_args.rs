@@ -15,35 +15,39 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let debug_impls = story.steps().map(generate_debug_impl);
     quote! {
         #[derive(Clone, Copy, narrative::serde::Serialize)]
+        #[serde(transparent, crate = "narrative::serde")]
+        pub struct StepArg(StepArgInner);
+
+        #[derive(Clone, Copy, narrative::serde::Serialize)]
         #[allow(non_camel_case_types)]
         #[serde(untagged, crate = "narrative::serde")]
-        pub enum StepArg {
+        enum StepArgInner {
             #(#step_names(args::#step_names)),*
         }
 
         impl narrative::step::StepArg for StepArg {
             #[inline]
             fn name(&self) -> &'static str {
-                match self {
-                    #(Self::#step_names(arg) => arg.name()),*
+                match self.0 {
+                    #(StepArgInner::#step_names(arg) => arg.name()),*
                 }
             }
             #[inline]
             fn ty(&self) -> &'static str {
-                match self {
-                    #(Self::#step_names(arg) => arg.ty()),*
+                match self.0 {
+                    #(StepArgInner::#step_names(arg) => arg.ty()),*
                 }
             }
             #[inline]
             fn debug_value(&self) -> String {
-                match self {
-                    #(Self::#step_names(arg) => arg.debug_value()),*
+                match self.0 {
+                    #(StepArgInner::#step_names(arg) => arg.debug_value()),*
                 }
             }
             #[inline]
             fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                match self {
-                    #(Self::#step_names(arg) => arg.serialize_value(serializer)),*
+                match self.0 {
+                    #(StepArgInner::#step_names(arg) => arg.serialize_value(serializer)),*
                 }
             }
         }
@@ -51,8 +55,8 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         impl std::fmt::Debug for StepArg {
             #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                match self {
-                    #(Self::#step_names(arg) => arg.fmt(f)),*
+                match self.0 {
+                    #(StepArgInner::#step_names(arg) => arg.fmt(f)),*
                 }
             }
         }
@@ -84,7 +88,7 @@ fn generate_step_enum(step: &StoryStep) -> TokenStream {
     quote! {
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy)]
-        pub enum #step_ident {
+        pub(super) enum #step_ident {
             #(#variants,)*
         }
     }

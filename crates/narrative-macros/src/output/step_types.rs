@@ -176,7 +176,7 @@ fn generate_step<'a>(story: &'a ItemStory, idx: usize, step: &'a StoryStep) -> S
             format!(#step_text #(#format_args)*)
         },
         args: quote! {
-            [#(StepArg::#step_name(args::#step_name::#args)),*].iter()
+            [#(StepArg(StepArgInner::#step_name(args::#step_name::#args))),*].iter()
         },
         id: quote! {
             StepId::new(#idx)
@@ -278,7 +278,7 @@ mod tests {
         assert_eq!(
             actual.args.to_string(),
             quote! {
-                [StepArg::my_step1(args::my_step1::name)].iter()
+                [StepArg(StepArgInner::my_step1(args::my_step1::name))].iter()
             }
             .to_string()
         );
@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(
             actual.args.to_string(),
             quote! {
-                [StepArg::my_step1(args::my_step1::name)].iter()
+                [StepArg(StepArgInner::my_step1(args::my_step1::name))].iter()
             }
             .to_string()
         );
