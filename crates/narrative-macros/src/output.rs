@@ -28,7 +28,7 @@ use crate::{
     Asyncness,
 };
 
-pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> crate::Result<TokenStream> {
+pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     let mod_ident = format_ident!("mod_{}", item.ident);
     let ident = &item.ident;
     let async_ident = format_ident!("Async{}", item.ident);
@@ -50,7 +50,7 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> crate::Result<Toke
         StoryItem::Trait(item) => Some(trait_def::generate(item)),
         _ => None,
     });
-    Ok(quote! {
+    quote! {
         #[allow(non_snake_case)]
         mod #mod_ident {
             #base_trait
@@ -68,10 +68,10 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> crate::Result<Toke
             #(#definitions)*
         }
         #[allow(unused_imports)]
-        use #mod_ident::#ident;
+        pub use #mod_ident::#ident;
         #[allow(unused_imports)]
-        use #mod_ident::#async_ident;
-        use #mod_ident::StoryExt as _;
-        use #mod_ident::AsyncStoryExt as _;
-    })
+        pub use #mod_ident::#async_ident;
+        pub use #mod_ident::StoryExt as _;
+        pub use #mod_ident::AsyncStoryExt as _;
+    }
 }

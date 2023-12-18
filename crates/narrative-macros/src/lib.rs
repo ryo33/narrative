@@ -19,15 +19,13 @@ pub fn story(
 ) -> proc_macro::TokenStream {
     let attr = parse_macro_input!(attr as StoryAttr);
     let story = parse_macro_input!(input as ItemStory);
-    process_story(attr, story)
-        .unwrap_or_else(|e| e.to_compile_error())
-        .into()
+    process_story(attr, story).into()
 }
 
 // In general, we don't do caching some intermediate results to keep the implementation simple.
 // However, we should avoid to have heavy computation in this crate, to keep the story compilation
 // fast. So, modules have their own functionality which is simple.
-fn process_story(attr: StoryAttr, story: ItemStory) -> Result<TokenStream> {
+fn process_story(attr: StoryAttr, story: ItemStory) -> TokenStream {
     output::generate(&attr, &story)
 }
 
@@ -36,6 +34,3 @@ pub(crate) enum Asyncness {
     Sync,
     Async,
 }
-
-pub(crate) use error::Error;
-type Result<T> = std::result::Result<T, Error>;

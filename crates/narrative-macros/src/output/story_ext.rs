@@ -38,18 +38,12 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         #async_trait
         pub trait #ext_ident: Sized {
             type Error: std::error::Error;
-            /// Get the context of this story.
-            fn context() -> StoryContext;
             /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
             #sig -> Result<(), narrative::RunAllError<StepId, Self::Error>>;
         }
         #async_trait
         impl <T: #ident> #ext_ident for T {
             type Error = T::Error;
-            #[inline]
-            fn context() -> StoryContext {
-                Default::default()
-            }
             #[inline]
             #sig -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                 use narrative::step::Step;
@@ -83,17 +77,11 @@ mod tests {
         let expected = quote! {
             pub trait StoryExt: Sized {
                 type Error: std::error::Error;
-                /// Get the context of this story.
-                fn context() -> StoryContext;
                 /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
                 fn run_all(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>>;
             }
             impl <T: UserStory> StoryExt for T {
                 type Error = T::Error;
-                #[inline]
-                fn context() -> StoryContext {
-                    Default::default()
-                }
                 #[inline]
                 fn run_all(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                     use narrative::step::Step;
@@ -124,18 +112,12 @@ mod tests {
             #[narrative::async_trait]
             pub trait AsyncStoryExt: Sized {
                 type Error: std::error::Error;
-                /// Get the context of this story.
-                fn context() -> StoryContext;
                 /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
                 async fn run_all_async(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>>;
             }
             #[narrative::async_trait]
             impl <T: AsyncUserStory> AsyncStoryExt for T {
                 type Error = T::Error;
-                #[inline]
-                fn context() -> StoryContext {
-                    Default::default()
-                }
                 #[inline]
                 async fn run_all_async(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                     use narrative::step::Step;

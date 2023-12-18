@@ -1,7 +1,4 @@
-use syn::{
-    bracketed,
-    parse::{Parse, ParseStream},
-};
+use syn::parse::{Parse, ParseStream};
 
 mod kw {
     syn::custom_keyword!(story);

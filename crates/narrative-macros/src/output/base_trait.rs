@@ -35,9 +35,11 @@ pub fn generate(input: &ItemStory) -> TokenStream {
     quote! {
         pub trait BaseTrait {
             #(#types)*
+            type Context: narrative::story::StoryContext;
         }
         impl<T> BaseTrait for T {
             #(#types_assigns)*
+            type Context = StoryContext;
         }
     }
 }
@@ -59,8 +61,12 @@ mod tests {
         };
         let actual = generate(&story_syntax);
         let expected = quote! {
-            pub trait BaseTrait {}
-            impl<T> BaseTrait for T {}
+            pub trait BaseTrait {
+                type Context: narrative::story::StoryContext;
+            }
+            impl<T> BaseTrait for T {
+                type Context = StoryContext;
+            }
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }
@@ -83,10 +89,12 @@ mod tests {
             pub trait BaseTrait {
                 type UserId;
                 type UserKind;
+                type Context: narrative::story::StoryContext;
             }
             impl<T> BaseTrait for T {
                 type UserId = UserId;
                 type UserKind = UserKind;
+                type Context = StoryContext;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -110,10 +118,12 @@ mod tests {
             pub trait BaseTrait {
                 type UserId<T>;
                 type UserKind<T: Clone>;
+                type Context: narrative::story::StoryContext;
             }
             impl<T> BaseTrait for T {
                 type UserId<T> = UserId<T>;
                 type UserKind<T: Clone> = UserKind<T>;
+                type Context = StoryContext;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
