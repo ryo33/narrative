@@ -1,22 +1,16 @@
-use crate::step::{Step, StepId};
-
+use crate::step::StepId;
 
 /// A trait for handing a story in general.
-pub trait Story: Sized {
-    type Story;
-    type StepId: StepId;
-    type Step: Step<Self, Self::Error> + 'static;
+// `&self` is not actually used, and is for future compatibility and friendly API.
+pub trait StoryContext: Sized {
+    type Step: 'static;
     type StepIter: Iterator<Item = &'static Self::Step>;
-    type Error: std::error::Error;
-    // This is not &str for future extensibility.
     /// Returns the title of the story.
-    fn story_title() -> String;
+    fn story_title(&self) -> String;
     /// Returns the identifier of the story.
-    fn story_ident() -> &'static str;
+    fn story_ident(&self) -> &'static str;
     /// Returns the steps of the story.
-    fn steps() -> Self::StepIter;
-    /// Run all steps in the story. It's a shortcut for iterating over the steps.
-    fn run_all(story: Self::Story) -> Result<(), RunAllError<Self::StepId, Self::Error>>;
+    fn steps(&self) -> Self::StepIter;
 }
 
 // Fields are public because this type is just a replacement of (StepId, S::Error).

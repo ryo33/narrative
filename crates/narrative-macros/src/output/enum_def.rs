@@ -31,7 +31,8 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
+            #[derive(Clone, Debug, PartialEq, narrative::serde::Serialize)]
+            #[serde(crate = "narrative::serde")]
             pub enum User {
                 Admin,
                 Developer(String),
@@ -60,7 +61,8 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
+            #[derive(Clone, Debug, PartialEq, narrative::serde::Serialize)]
+            #[serde(crate = "narrative::serde")]
             pub enum User {
                 #[keep_this]
                 #[keep_this2]
@@ -89,7 +91,8 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
-            #[derive(Clone, Debug, PartialEq, narrative::Serialize)]
+            #[derive(Clone, Debug, PartialEq, narrative::serde::Serialize)]
+            #[serde(crate = "narrative::serde")]
             pub enum User<T, U> {
                 Admin,
                 Developer(String),
@@ -97,7 +100,7 @@ mod tests {
                     id: i32,
                     name: String,
                 }
-            }
+            } 
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }

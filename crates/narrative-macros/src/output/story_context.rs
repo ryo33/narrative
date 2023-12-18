@@ -3,31 +3,41 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::{
-    item_story::{ItemStory, StoryItem},
-    Asyncness,
-};
+use crate::{item_story::ItemStory, story_attr_syntax::StoryAttr};
 
-pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
+pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
+    let title = &attr.title;
     let ident = &input.ident;
-    let steps = input.items.iter().filter_map(|item| {
-        let StoryItem::Step(step) = item else {
-            return None;
-        };
+    let steps = input.steps().map(|step| {
         let step_name = &step.inner.sig.ident;
-        Some(quote! {
-            pub fn #step_name(&self) -> Step<steps::#step_name<T, T::Error>> {
-                Default::default()
+        quote! {
+            pub fn #step_name(&self) -> Step {
+                Step::#step_name
             }
-        })
+        }
     });
+    let step_names = input.steps().map(|step| &step.inner.sig.ident);
     quote! {
         #[derive(Default)]
-        pub struct StoryContext<T: #ident> {
-            phantom: std::marker::PhantomData<T>,
-        }
-        impl <T: #ident> StoryContext<T> {
+        pub struct StoryContext;
+        impl StoryContext {
             #(#steps)*
+        }
+        impl narrative::story::StoryContext for StoryContext {
+            type Step = Step;
+            type StepIter = std::slice::Iter<'static, Self::Step>;
+            #[inline]
+            fn story_title(&self) -> String {
+                #title.to_string()
+            }
+            #[inline]
+            fn story_ident(&self) -> &'static str {
+                stringify!(#ident)
+            }
+            #[inline]
+            fn steps(&self) -> Self::StepIter {
+                [#(Step::#step_names),*].iter()
+            }
         }
     }
 }
@@ -39,6 +49,9 @@ mod tests {
 
     #[test]
     fn test_generate() {
+        let attr = syn::parse_quote! {
+            "Story Title"
+        };
         let story_syntax = syn::parse_quote! {
             trait UserStory {
                 #[step("step1")]
@@ -47,18 +60,29 @@ mod tests {
                 fn step2(name: &str);
             }
         };
-        let actual = generate(&story_syntax, Asyncness::Sync);
+        let actual = generate(&attr, &story_syntax);
         let expected = quote! {
             #[derive(Default)]
-            pub struct StoryContext<T: UserStory> {
-                phantom: std::marker::PhantomData<T>,
-            }
-            impl <T: UserStory> StoryContext<T> {
-                pub fn step1(&self) -> Step<steps::step1<T, T::Error>> {
-                    Default::default()
+            pub struct StoryContext;
+            impl StoryContext {
+                pub fn step1(&self) -> Step {
+                    Step::step1
                 }
-                pub fn step2(&self) -> Step<steps::step2<T, T::Error>> {
-                    Default::default()
+                pub fn step2(&self) -> Step {
+                    Step::step2
+                }
+            }
+            impl narrative::story::StoryContext for StoryContext {
+                type Step = Step;
+                type StepIter = std::slice::Iter<'static, Self::Step>;
+                fn story_title(&self) -> String {
+                    "Story Title".to_string()
+                }
+                fn story_ident(&self) -> &'static str {
+                    stringify!(UserStory)
+                }
+                fn steps(&self) -> Self::StepIter {
+                    [Step::step1, Step::step2].iter()
                 }
             }
         };

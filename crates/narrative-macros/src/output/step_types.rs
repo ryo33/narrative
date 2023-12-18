@@ -1,22 +1,37 @@
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
-use crate::{
-    item_story::{ItemStory, StoryItem, StoryStep},
-    Asyncness,
-};
+use crate::item_story::{ItemStory, StoryItem, StoryStep};
 
-pub(crate) fn generate(story: &ItemStory, asyncness: Asyncness) -> TokenStream {
-    let step_names = story.steps().map(|step| step.inner.sig.ident);
+pub(crate) fn generate(story: &ItemStory) -> TokenStream {
+    let story_ident = &story.ident;
+    let async_story_ident = format_ident!("Async{}", story_ident);
+    let step_names = story.steps().map(|step| &step.inner.sig.ident);
     let steps: Vec<_> = story
-        .items
-        .iter()
+        .steps()
         .enumerate()
-        .filter_map(|(idx, item)| match item {
-            StoryItem::Step(step) => Some(generate_step(story, idx, step, asyncness)),
-            _ => None,
-        })
+        .map(|(idx, step)| generate_step(story, idx, step))
         .collect();
+    let step_texts = steps.iter().map(
+        |StepSegments {
+             ident, step_text, ..
+         }| quote!(Self::#ident => { #step_text }),
+    );
+    let step_args = steps
+        .iter()
+        .map(|StepSegments { ident, args, .. }| quote!(Self::#ident => { #args }));
+    let step_ids = steps
+        .iter()
+        .map(|StepSegments { ident, id, .. }| quote!(Self::#ident => { #id }));
+    let step_runs = steps
+        .iter()
+        .map(|StepSegments { ident, run, .. }| quote!(Self::#ident => { #run }));
+    let step_runs_async = steps.iter().map(
+        |StepSegments {
+             ident, run_async, ..
+         }| quote!(Self::#ident => { #run_async }),
+    );
+
     quote! {
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct StepId {
@@ -30,54 +45,86 @@ pub(crate) fn generate(story: &ItemStory, asyncness: Asyncness) -> TokenStream {
             }
         }
         impl narrative::step::StepId for StepId {
+            #[inline]
             fn index(&self) -> usize {
                 self.index
             }
         }
-        #[derive(Clone, Copy, Default, narrative::Serialize)]
-        #[serde(transparent)]
-        pub struct Step<T>(T);
 
-        impl <T: std::fmt::Debug> std::fmt::Debug for Step<T> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                self.0.fmt(f)
+        #[allow(non_camel_case_types)]
+        pub enum Step {
+            #(#step_names),*
+        }
+        impl narrative::step::Step for Step {
+            type Id = StepId;
+            type Arg = StepArg;
+            type ArgIter = std::slice::Iter<'static, Self::Arg>;
+            #[inline]
+            fn step_text(&self) -> String {
+                match self {
+                    #(#step_texts)*
+                }
+            }
+            #[inline]
+            fn args(&self) -> Self::ArgIter {
+                match self {
+                    #(#step_args)*
+                }
+            }
+            #[inline]
+            fn id(&self) -> Self::Id {
+                match self {
+                    #(#step_ids)*
+                }
             }
         }
 
-        mod steps {
-            use super::*;
-            #[allow(non_camel_case_types)]
-            pub enum Step {
-                #(#step_names),*
+        impl <T: #story_ident> narrative::step::Run<T, T::Error> for Step {
+            #[inline]
+            fn run(&self, story: &mut T) -> Result<(), T::Error> {
+                match self {
+                    #(#step_runs)*
+                }
             }
-            #(#steps)*
+        }
+
+        #[async_trait::async_trait]
+        impl <T: #async_story_ident> narrative::step::RunAsync<T, T::Error> for Step {
+            #[inline]
+            async fn run_async(&self, story: &mut T) -> Result<(), T::Error> {
+                match self {
+                    #(#step_runs_async)*
+                }
+            }
         }
     }
 }
 
-pub struct StepSegments {
+pub struct StepSegments<'a> {
+    ident: &'a syn::Ident,
     run: TokenStream,
+    run_async: TokenStream,
     step_text: TokenStream,
     args: TokenStream,
     id: TokenStream,
 }
 
-fn generate_step(
-    story: &ItemStory,
-    idx: usize,
-    step: &StoryStep,
-    asyncness: Asyncness,
-) -> TokenStream {
+fn generate_step<'a>(story: &'a ItemStory, idx: usize, step: &'a StoryStep) -> StepSegments<'a> {
     let step_name = &step.inner.sig.ident;
     let step_text = &step.attr.text;
     // We don't filter out unused step args here to generate unused warnings.
-    let step_args_assignments = step.attr.args.iter().map(|arg| {
-        let name = &arg.ident;
-        let value = &arg.value;
-        quote! {
-            let #name = #value;
-        }
-    });
+    let step_args_assignments: Vec<_> = step
+        .attr
+        .args
+        .iter()
+        .map(|arg| {
+            let name = &arg.ident;
+            let value = &arg.value;
+            quote! {
+                let #name = #value;
+            }
+        })
+        .collect();
     let format_args_from_attr = step.attr.args.iter().filter_map(|arg| {
         if step_text
             .value()
@@ -113,187 +160,249 @@ fn generate_step(
                 , #ident = #expr
             }
         });
-    let used_global_assignments = story.items.iter().filter_map(|item| match item {
-        StoryItem::Let(assignment) => {
-            if step.inner.sig.inputs.iter().any(|arg| {
-                let syn::FnArg::Typed(syn::PatType { pat, .. }) = arg else {
-                    return false;
-                };
-                pat == &assignment.pat
-            }) {
-                Some(assignment)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    });
-    let args = step.inner.sig.inputs.iter().filter_map(|arg| match arg {
-        syn::FnArg::Typed(syn::PatType { pat, .. }) => Some(pat),
-        _ => None,
-    });
-    let story_ident = &story.ident;
-    quote! {
-        #[allow(non_camel_case_types)]
-        #[derive(Clone, Copy, Debug, Default)]
-        pub struct #step_name<T, E> {
-            phantom: std::marker::PhantomData<(T, E)>,
-        }
+    let args: Vec<_> = step.fn_args().map(|(ident, _)| ident).collect();
 
-        impl <T: #story_ident> Step<#step_name<T, T::Error>> {
-            fn run(&self, story: &mut T) -> Result<(), T::Error> {
-                #(#used_global_assignments)*
-                #(#step_args_assignments)*
-                T::#step_name(story #(,#args)*)
-            }
-            fn step_text(&self) -> String {
-                format!(#step_text #(#format_args)*)
-            }
-            fn args(&self) -> Self::ArgIter {
-                Default::default()
-            }
-            fn id(&self) -> Self::Id {
-                StepId::new(#idx)
-            }
-        }
+    StepSegments {
+        ident: &step.inner.sig.ident,
+        run: quote! {
+            #(#step_args_assignments)*
+            T::#step_name(story #(,#args)*)
+        },
+        run_async: quote! {
+            #(#step_args_assignments)*
+            T::#step_name(story #(,#args)*).await
+        },
+        step_text: quote! {
+            format!(#step_text #(#format_args)*)
+        },
+        args: quote! {
+            [#(StepArg::#step_name(args::#step_name::#args)),*].iter()
+        },
+        id: quote! {
+            StepId::new(#idx)
+        },
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use syn::parse2;
+    use syn::parse_quote;
 
     use super::*;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn simple() {
-        let step = quote! {
+        let step = parse_quote! {
             #[step("Step 1")]
             fn my_step1();
         };
-        let story_syntax = syn::parse_quote! {
+        let story_syntax = parse_quote! {
             trait UserStory {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 42, &parse2(step).unwrap(), Asyncness::Sync);
-        let expected = quote! {
-            #[allow(non_camel_case_types)]
-            #[derive(Clone, Copy, Debug, Default)]
-            pub struct my_step1<T, E> {
-                phantom: std::marker::PhantomData<(T, E)>,
+        let actual = generate_step(&story_syntax, 42, &step);
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                T::my_step1(story)
             }
-
-            impl <T: UserStory> narrative::step::Step<T, T::Error> for Step<my_step1<T, T::Error>> {
-                type Id = StepId;
-                type Arg = StepArg<args::my_step1>;
-                type ArgIter = std::slice::Iter<'static, Self::Arg>;
-                fn run(&self, story: &mut T) -> Result<(), T::Error> {
-                    T::my_step1(story)
-                }
-                fn step_text(&self) -> String {
-                    format!("Step 1")
-                }
-                fn args(&self) -> Self::ArgIter {
-                    Default::default()
-                }
-                fn id(&self) -> Self::Id {
-                    StepId::new(42usize)
-                }
+            .to_string()
+        );
+        assert_eq!(
+            actual.run_async.to_string(),
+            quote! {
+                T::my_step1(story).await
             }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
+            .to_string()
+        );
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("Step 1")
+            }
+            .to_string()
+        );
+        assert_eq!(
+            actual.args.to_string(),
+            quote! {
+                [].iter()
+            }
+            .to_string()
+        );
+        assert_eq!(
+            actual.id.to_string(),
+            quote! {
+                StepId::new(42usize)
+            }
+            .to_string()
+        );
     }
 
     #[test]
     fn use_step_attr_args() {
-        let step = quote! {
+        let step = parse_quote! {
             #[step("Step 1: {name}", name = "ryo")]
             fn my_step1(name: &str);
         };
-        let story_syntax = syn::parse_quote! {
+        let story_syntax = parse_quote! {
             trait UserStory {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 1, &parse2(step).unwrap(), Asyncness::Sync);
-        let expected = quote! {
-            #[allow(non_camel_case_types)]
-            #[derive(Clone, Copy, Debug, Default)]
-            pub struct my_step1<T, E> {
-                phantom: std::marker::PhantomData<(T, E)>,
+        let actual = generate_step(&story_syntax, 1, &step);
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                let name = "ryo";
+                T::my_step1(story, name)
             }
-
-            impl <T: UserStory> narrative::step::Step<T, T::Error> for Step<my_step1<T, T::Error>> {
-                type Id = StepId;
-                type Arg = StepArg<args::my_step1>;
-                type ArgIter = std::slice::Iter<'static, Self::Arg>;
-
-                fn run(&self, story: &mut T) -> Result<(), T::Error> {
-                    let name = "ryo";
-                    T::my_step1(story, name)
-                }
-                fn step_text(&self) -> String {
-                    format!("Step 1: {name}", name = "ryo")
-                }
-                fn args(&self) -> Self::ArgIter {
-                    Default::default()
-                }
-                fn id(&self) -> Self::Id {
-                    StepId::new(1usize)
-                }
+            .to_string()
+        );
+        assert_eq!(
+            actual.run_async.to_string(),
+            quote! {
+                let name = "ryo";
+                T::my_step1(story, name).await
             }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
+            .to_string()
+        );
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("Step 1: {name}", name = "ryo")
+            }
+            .to_string()
+        );
+        assert_eq!(
+            actual.args.to_string(),
+            quote! {
+                [StepArg::my_step1(args::my_step1::name)].iter()
+            }
+            .to_string()
+        );
     }
 
     #[test]
     /// User can get unused warnings for step attr args.
     fn test_unused_step_attr_args() {
-        let step = quote! {
-            #[step("Step 1: {name}", name = "ryo")]
-            fn my_step1();
+        let step = parse_quote! {
+            #[step("Step 1: {name}", name = "ryo", unused = "unused")]
+            fn my_step1(name: &str);
         };
-        let story_syntax = syn::parse_quote! {
+        let story_syntax = parse_quote! {
             trait UserStory {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 1, &parse2(step).unwrap(), Asyncness::Sync);
-        let expected = quote! {
-            #[allow(non_camel_case_types)]
-            #[derive(Clone, Copy, Debug, Default)]
-            pub struct my_step1<T, E> {
-                phantom: std::marker::PhantomData<(T, E)>,
+        let actual = generate_step(&story_syntax, 1, &step);
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                let name = "ryo";
+                let unused = "unused";
+                T::my_step1(story, name)
             }
-
-            impl <T: UserStory> narrative::step::Step<T, T::Error> for Step<my_step1<T, T::Error>> {
-                type Id = StepId;
-                type Arg = StepArg<args::my_step1>;
-                type ArgIter = std::slice::Iter<'static, Self::Arg>;
-
-                fn run(&self, story: &mut T) -> Result<(), T::Error> {
-                    let name = "ryo";
-                    T::my_step1(story)
-                }
-                fn step_text(&self) -> String {
-                    format!("Step 1: {name}", name = "ryo")
-                }
-                fn args(&self) -> Self::ArgIter {
-                    Default::default()
-                }
-                fn id(&self) -> Self::Id {
-                    StepId::new(1usize)
-                }
+            .to_string()
+        );
+        assert_eq!(
+            actual.run_async.to_string(),
+            quote! {
+                let name = "ryo";
+                let unused = "unused";
+                T::my_step1(story, name).await
             }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
+            .to_string()
+        );
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("Step 1: {name}", name = "ryo")
+            }
+            .to_string()
+        );
+        assert_eq!(
+            actual.args.to_string(),
+            quote! {
+                [StepArg::my_step1(args::my_step1::name)].iter()
+            }
+            .to_string()
+        );
     }
 
     #[test]
-    fn test_global_assignments() {}
+    /// Outputs don't include global assignments, and uses the one defined with match statement.
+    /// But step_text refers global assignments.
+    fn test_run_does_not_include_global_assignments() {
+        let step = parse_quote! {
+            #[step("Step 1: {name}")]
+            fn my_step1(name: &str);
+        };
+        let story_syntax = parse_quote! {
+            trait UserStory {
+                let name = "ryo";
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, 1, &step);
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                T::my_step1(story, name)
+            }
+            .to_string()
+        );
+        assert_eq!(
+            actual.run_async.to_string(),
+            quote! {
+                T::my_step1(story, name).await
+            }
+            .to_string()
+        );
+    }
 
     #[test]
-    fn test_format_arg_insufficient() {}
+    fn test_step_text_can_refer_global_assignment() {
+        let step = parse_quote! {
+            #[step("Step 1: {name}")]
+            fn my_step1(name: &str);
+        };
+        let story_syntax = parse_quote! {
+            trait UserStory {
+                let name = "ryo";
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, 1, &step);
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("Step 1: {name}", name = "ryo")
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    /// User can get insufficient format args error.
+    fn test_format_arg_insufficient() {
+        let step = parse_quote! {
+            #[step("Step 1: {name} {age}", name = "ryo")]
+            fn my_step1(name: &str);
+        };
+        let story_syntax = parse_quote! {
+            trait UserStory {
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, 1, &step);
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("Step 1: {name} {age}", name = "ryo")
+            }
+            .to_string()
+        );
+    }
 }

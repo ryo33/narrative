@@ -6,5 +6,8 @@ pub fn generate() -> TokenStream {
     // Eq cannot be derived for floating point numbers.
     // PartialOrd and Hash cannot be derived for HashMap
     // Serialize is for transfer arguments to other processes.
-    quote!(#[derive(Clone, Debug, PartialEq, narrative::Serialize)])
+    quote! {
+        #[derive(Clone, Debug, PartialEq, narrative::serde::Serialize)]
+        #[serde(crate = "narrative::serde")]
+    }
 }

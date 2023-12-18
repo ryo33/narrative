@@ -1,3 +1,5 @@
+use proc_macro2::TokenStream;
+use quote::ToTokens;
 use syn::parse::Parse;
 
 mod kw {
@@ -59,9 +61,34 @@ impl Parse for StepAttrArgs {
     }
 }
 
+impl ToTokens for StepAttr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.pound_symbol.to_tokens(tokens);
+        self.bracket.surround(tokens, |tokens| {
+            self.step.to_tokens(tokens);
+            self.paren.surround(tokens, |tokens| {
+                self.text.to_tokens(tokens);
+                for arg in &self.args {
+                    arg.to_tokens(tokens);
+                }
+            });
+        });
+    }
+}
+
+impl ToTokens for StepAttrArgs {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.comma_token.to_tokens(tokens);
+        self.ident.to_tokens(tokens);
+        self.equal_token.to_tokens(tokens);
+        self.value.to_tokens(tokens);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quote::quote;
 
     #[test]
     fn test_step_attr() {
@@ -100,5 +127,19 @@ mod tests {
             &input.args[2].value,
             syn::Expr::Call(syn::ExprCall { func, .. }) if matches!(func.as_ref(), syn::Expr::Path(syn::ExprPath { path, .. }) if path.segments.len() == 2 && path.segments[0].ident == "UserId")
         ));
+    }
+
+    #[test]
+    fn test_to_tokens() {
+        let input: StepAttr = syn::parse_quote! {
+            #[step("Hello, world!", arg1 = 1, arg2 = "2", arg3 = UserId::new_v4())]
+        };
+        let actual = quote! {
+            #input
+        };
+        let expected = quote! {
+            #[step("Hello, world!", arg1 = 1, arg2 = "2", arg3 = UserId::new_v4())]
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
     }
 }

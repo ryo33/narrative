@@ -8,20 +8,19 @@ mod trait_def;
 mod local_type_assertions;
 mod local_type_impls;
 
-mod unused_assignments;
-
 mod base_trait;
 mod step_fn;
 mod story_trait;
 
-mod dummy_environment;
 mod step_args;
 mod step_types;
 mod story_context;
 mod story_ext;
 
+mod dummy_environment;
+
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::{
     item_story::{ItemStory, StoryItem},
@@ -30,16 +29,21 @@ use crate::{
 };
 
 pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> crate::Result<TokenStream> {
+    let mod_ident = format_ident!("mod_{}", item.ident);
+    let ident = &item.ident;
+    let async_ident = format_ident!("Async{}", item.ident);
     let base_trait = base_trait::generate(item);
     let story_trait = story_trait::generate(item, Asyncness::Sync);
+    let async_story_trait = story_trait::generate(item, Asyncness::Async);
     let step_args = step_args::generate(item);
-    let step_types = step_types::generate(item, Asyncness::Sync);
-    let story_context = story_context::generate(item, Asyncness::Sync);
-    let story_ext = story_ext::generate(attr, item, Asyncness::Sync);
+    let step_types = step_types::generate(item);
+    let story_context = story_context::generate(attr, item);
+    let story_ext = story_ext::generate(item, Asyncness::Sync);
+    let async_story_ext = story_ext::generate(item, Asyncness::Async);
     let local_type_impls = local_type_impls::generate(item);
     let local_type_assertions = local_type_assertions::generate(item);
-    let unused_assignments = unused_assignments::generate(item);
-    let dummy_environment = dummy_environment::generate(item);
+    let dummy_environment = dummy_environment::generate(item, Asyncness::Sync);
+    let async_dummy_environment = dummy_environment::generate(item, Asyncness::Async);
     let definitions = item.items.iter().filter_map(|item| match item {
         StoryItem::Struct(item) => Some(struct_def::generate(item)),
         StoryItem::Enum(item) => Some(enum_def::generate(item)),
@@ -47,16 +51,27 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> crate::Result<Toke
         _ => None,
     });
     Ok(quote! {
-        #base_trait
-        #story_trait
-        #step_args
-        #step_types
-        #story_context
-        #story_ext
-        // #local_type_impls
-        // #local_type_assertions
-        // #unused_assignments
-        #dummy_environment
-        #(#definitions)*
+        #[allow(non_snake_case)]
+        mod #mod_ident {
+            #base_trait
+            #story_trait
+            #async_story_trait
+            #step_args
+            #step_types
+            #story_context
+            #story_ext
+            #async_story_ext
+            #local_type_impls
+            #local_type_assertions
+            #dummy_environment
+            #async_dummy_environment
+            #(#definitions)*
+        }
+        #[allow(unused_imports)]
+        use #mod_ident::#ident;
+        #[allow(unused_imports)]
+        use #mod_ident::#async_ident;
+        use #mod_ident::StoryExt as _;
+        use #mod_ident::AsyncStoryExt as _;
     })
 }

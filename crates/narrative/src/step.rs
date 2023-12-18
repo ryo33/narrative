@@ -8,13 +8,13 @@ pub trait Step {
     fn id(&self) -> Self::Id;
 }
 
-pub trait StepRun<T, E>: Step {
-    fn run(&mut self, story: &mut T) -> Result<(), E>;
+pub trait Run<T, E> {
+    fn run(&self, story: &mut T) -> Result<(), E>;
 }
 
 #[async_trait::async_trait]
-pub trait StepRunAsync<T, E>: Step {
-    async fn run_async(self, story: &mut T) -> Result<(), E>;
+pub trait RunAsync<T, E>: Step {
+    async fn run_async(&self, story: &mut T) -> Result<(), E>;
 }
 
 pub trait StepId: Copy + Clone + PartialEq + Eq + PartialOrd + Ord + 'static {

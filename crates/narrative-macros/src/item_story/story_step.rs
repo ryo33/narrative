@@ -1,3 +1,5 @@
+use proc_macro2::TokenStream;
+use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 
 use crate::step_attr_syntax::StepAttr;
@@ -15,13 +17,20 @@ impl Parse for StoryStep {
     }
 }
 
+impl ToTokens for StoryStep {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.attr.to_tokens(tokens);
+        self.inner.to_tokens(tokens);
+    }
+}
+
 impl StoryStep {
     pub(crate) fn attr_args(&self) -> impl Iterator<Item = (&syn::Ident, &syn::Expr)> {
         self.attr.args.iter().map(|arg| (&arg.ident, &arg.value))
     }
 
     /// This ignores patterns.
-    pub(crate) fn fn_arg_idents(&self) -> impl Iterator<Item = (&syn::Ident, &syn::Type)> {
+    pub(crate) fn fn_args(&self) -> impl Iterator<Item = (&syn::Ident, &syn::Type)> {
         self.inner
             .sig
             .inputs
@@ -63,5 +72,22 @@ mod tests {
         let actual = syn::parse2::<StoryStep>(input).unwrap();
         assert_eq!(actual.attr.text.value(), "Step 1".to_string());
         assert_eq!(actual.inner.sig.ident.to_string(), "step1".to_string());
+    }
+
+    #[test]
+    fn to_tokens() {
+        let input = quote! {
+            #[step("Step 1")]
+            fn step1();
+        };
+        let actual = syn::parse2::<StoryStep>(input).unwrap();
+        let actual = quote! {
+            #actual
+        };
+        let expected = quote! {
+            #[step("Step 1")]
+            fn step1();
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
     }
 }
