@@ -1,11 +1,10 @@
 // T and E can be any type by implementing the story trait in any way.
 pub trait Step {
-    type Id: StepId;
     type Arg: StepArg + 'static;
     type ArgIter: Iterator<Item = &'static Self::Arg>;
     fn step_text(&self) -> String;
+    fn step_id(&self) -> &'static str;
     fn args(&self) -> Self::ArgIter;
-    fn id(&self) -> Self::Id;
 }
 
 pub trait Run<T, E> {
@@ -15,10 +14,6 @@ pub trait Run<T, E> {
 #[async_trait::async_trait]
 pub trait RunAsync<T, E>: Step {
     async fn run_async(&self, story: &mut T) -> Result<(), E>;
-}
-
-pub trait StepId: Copy + Clone + PartialEq + Eq + PartialOrd + Ord + 'static {
-    fn index(&self) -> usize;
 }
 
 pub trait StepArg: Clone + std::fmt::Debug {

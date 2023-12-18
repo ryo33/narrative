@@ -9,20 +9,19 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let step_names = story.steps().map(|step| &step.inner.sig.ident);
     let steps: Vec<_> = story
         .steps()
-        .enumerate()
-        .map(|(idx, step)| generate_step(story, idx, step))
+        .map(|step| generate_step(story, step))
         .collect();
     let step_texts = steps.iter().map(
         |StepSegments {
              ident, step_text, ..
          }| quote!(Self::#ident => { #step_text }),
     );
+    let step_idents = steps
+        .iter()
+        .map(|StepSegments { ident, idents, .. }| quote!(Self::#ident => { #idents }));
     let step_args = steps
         .iter()
         .map(|StepSegments { ident, args, .. }| quote!(Self::#ident => { #args }));
-    let step_ids = steps
-        .iter()
-        .map(|StepSegments { ident, id, .. }| quote!(Self::#ident => { #id }));
     let step_runs = steps
         .iter()
         .map(|StepSegments { ident, run, .. }| quote!(Self::#ident => { #run }));
@@ -33,30 +32,11 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     );
 
     quote! {
-        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub struct StepId {
-            index: usize,
-        }
-        impl StepId {
-            pub fn new(index: usize) -> Self {
-                Self {
-                    index,
-                }
-            }
-        }
-        impl narrative::step::StepId for StepId {
-            #[inline]
-            fn index(&self) -> usize {
-                self.index
-            }
-        }
-
         #[allow(non_camel_case_types)]
         pub enum Step {
             #(#step_names),*
         }
         impl narrative::step::Step for Step {
-            type Id = StepId;
             type Arg = StepArg;
             type ArgIter = std::slice::Iter<'static, Self::Arg>;
             #[inline]
@@ -66,15 +46,15 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 }
             }
             #[inline]
-            fn args(&self) -> Self::ArgIter {
+            fn step_id(&self) -> &'static str {
                 match self {
-                    #(#step_args)*
+                    #(#step_idents)*
                 }
             }
             #[inline]
-            fn id(&self) -> Self::Id {
+            fn args(&self) -> Self::ArgIter {
                 match self {
-                    #(#step_ids)*
+                    #(#step_args)*
                 }
             }
         }
@@ -106,10 +86,10 @@ pub struct StepSegments<'a> {
     run_async: TokenStream,
     step_text: TokenStream,
     args: TokenStream,
-    id: TokenStream,
+    idents: TokenStream,
 }
 
-fn generate_step<'a>(story: &'a ItemStory, idx: usize, step: &'a StoryStep) -> StepSegments<'a> {
+fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<'a> {
     let step_name = &step.inner.sig.ident;
     let step_text = &step.attr.text;
     // We don't filter out unused step args here to generate unused warnings.
@@ -175,11 +155,11 @@ fn generate_step<'a>(story: &'a ItemStory, idx: usize, step: &'a StoryStep) -> S
         step_text: quote! {
             format!(#step_text #(#format_args)*)
         },
+        idents: quote! {
+            stringify!(#step_name)
+        },
         args: quote! {
             [#(StepArg(StepArgInner::#step_name(args::#step_name::#args))),*].iter()
-        },
-        id: quote! {
-            StepId::new(#idx)
         },
     }
 }
@@ -202,7 +182,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 42, &step);
+        let actual = generate_step(&story_syntax, &step);
         assert_eq!(
             actual.run.to_string(),
             quote! {
@@ -225,16 +205,16 @@ mod tests {
             .to_string()
         );
         assert_eq!(
-            actual.args.to_string(),
+            actual.idents.to_string(),
             quote! {
-                [].iter()
+                stringify!(my_step1)
             }
             .to_string()
         );
         assert_eq!(
-            actual.id.to_string(),
+            actual.args.to_string(),
             quote! {
-                StepId::new(42usize)
+                [].iter()
             }
             .to_string()
         );
@@ -251,7 +231,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 1, &step);
+        let actual = generate_step(&story_syntax, &step);
         assert_eq!(
             actual.run.to_string(),
             quote! {
@@ -296,7 +276,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 1, &step);
+        let actual = generate_step(&story_syntax, &step);
         assert_eq!(
             actual.run.to_string(),
             quote! {
@@ -345,7 +325,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 1, &step);
+        let actual = generate_step(&story_syntax, &step);
         assert_eq!(
             actual.run.to_string(),
             quote! {
@@ -374,7 +354,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 1, &step);
+        let actual = generate_step(&story_syntax, &step);
         assert_eq!(
             actual.step_text.to_string(),
             quote! {
@@ -396,7 +376,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_step(&story_syntax, 1, &step);
+        let actual = generate_step(&story_syntax, &step);
         assert_eq!(
             actual.step_text.to_string(),
             quote! {

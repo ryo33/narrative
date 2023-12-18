@@ -32,7 +32,7 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
                 #title.to_string()
             }
             #[inline]
-            fn story_ident(&self) -> &'static str {
+            fn story_id(&self) -> &'static str {
                 stringify!(#ident)
             }
             #[inline]
@@ -118,7 +118,7 @@ mod tests {
                     "Story Title".to_string()
                 }
                 #[inline]
-                fn story_ident(&self) -> &'static str {
+                fn story_id(&self) -> &'static str {
                     stringify!(UserStory)
                 }
                 #[inline]
