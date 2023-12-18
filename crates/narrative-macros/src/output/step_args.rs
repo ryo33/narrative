@@ -94,6 +94,7 @@ fn generate_serialize_impl(step: &StoryStep) -> TokenStream {
     let step_ident = &step.inner.sig.ident;
     quote! {
         impl narrative::serde::Serialize for #step_ident {
+            #[inline]
             fn serialize<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                 use narrative::serde::ser::SerializeMap;
                 let mut map = serializer.serialize_map(Some(3))?;
@@ -197,26 +198,30 @@ mod tests {
         };
         let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
         let expected = quote! {
-            impl narrative::step::StepArg for my_step1 {
-                fn name(&self) -> &'static str {
+            impl my_step1 {
+                #[inline]
+                pub(super) fn name(&self) -> &'static str {
                     match self {
-                        _ => todo!()
+                        _ => todo!(),
                     }
                 }
-                fn ty(&self) -> &'static str {
+                #[inline]
+                pub(super) fn ty(&self) -> &'static str {
                     match self {
-                        _ => todo!()
+                        _ => todo!(),
                     }
                 }
-                fn debug_value(&self) -> String {
+                #[inline]
+                pub(super) fn debug_value(&self) -> String {
                     match self {
-                        _ => todo!()
+                        _ => todo!(),
                     }
                 }
-                fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
+                #[inline]
+                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     use serde::Serialize;
                     match self {
-                        _ => todo!()
+                        _ => todo!(),
                     }
                 }
             }
@@ -237,26 +242,34 @@ mod tests {
         };
         let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
         let expected = quote! {
-            impl narrative::step::StepArg for my_step1 {
-                fn name(&self) -> &'static str {
+            impl my_step1 {
+                #[inline]
+                pub(super) fn name(&self) -> &'static str {
                     match self {
-                        my_step1::name => stringify!(name),
+                        Self::name => stringify!(name),
+                        _ => todo!(),
                     }
                 }
-                fn ty(&self) -> &'static str {
+                #[inline]
+                pub(super) fn ty(&self) -> &'static str {
                     match self {
-                        my_step1::name => stringify!(&str),
+                        Self::name => stringify!(&str),
+                        _ => todo!(),
                     }
                 }
-                fn debug_value(&self) -> String {
+                #[inline]
+                pub(super) fn debug_value(&self) -> String {
                     match self {
-                        my_step1::name => format!("{:?}", "ryo"),
+                        Self::name => format!("{:?}", "ryo"),
+                        _ => todo!(),
                     }
                 }
-                fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
+                #[inline]
+                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     use serde::Serialize;
                     match self {
-                        my_step1::name => ("ryo" as &str).serialize(serializer),
+                        Self::name => ("ryo" as &str).serialize(serializer),
+                        _ => todo!(),
                     }
                 }
             }
@@ -280,30 +293,38 @@ mod tests {
         };
         let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
         let expected = quote! {
-            impl narrative::step::StepArg for my_step1 {
-                fn name(&self) -> &'static str {
+            impl my_step1 {
+                #[inline]
+                pub(super) fn name(&self) -> &'static str {
                     match self {
-                        my_step1::id => stringify!(id),
-                        my_step1::name => stringify!(name),
+                        Self::id => stringify!(id),
+                        Self::name => stringify!(name),
+                        _ => todo!(),
                     }
                 }
-                fn ty(&self) -> &'static str {
+                #[inline]
+                pub(super) fn ty(&self) -> &'static str {
                     match self {
-                        my_step1::id => stringify!(UserId),
-                        my_step1::name => stringify!(&str),
+                        Self::id => stringify!(UserId),
+                        Self::name => stringify!(&str),
+                        _ => todo!(),
                     }
                 }
-                fn debug_value(&self) -> String {
+                #[inline]
+                pub(super) fn debug_value(&self) -> String {
                     match self {
-                        my_step1::id => format!("{:?}", UserId::new()),
-                        my_step1::name => format!("{:?}", "Alice"),
+                        Self::id => format!("{:?}", UserId::new()),
+                        Self::name => format!("{:?}", "Alice"),
+                        _ => todo!(),
                     }
                 }
-                fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
+                #[inline]
+                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     use serde::Serialize;
                     match self {
-                        my_step1::id => (UserId::new() as UserId).serialize(serializer),
-                        my_step1::name => ("Alice" as &str).serialize(serializer),
+                        Self::id => (UserId::new() as UserId).serialize(serializer),
+                        Self::name => ("Alice" as &str).serialize(serializer),
+                        _ => todo!(),
                     }
                 }
             }
@@ -327,30 +348,38 @@ mod tests {
         };
         let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
         let expected = quote! {
-            impl narrative::step::StepArg for my_step1 {
-                fn name(&self) -> &'static str {
+            impl my_step1 {
+                #[inline]
+                pub(super) fn name(&self) -> &'static str {
                     match self {
-                        my_step1::id => stringify!(id),
-                        my_step1::name => stringify!(name),
+                        Self::id => stringify!(id),
+                        Self::name => stringify!(name),
+                        _ => todo!(),
                     }
                 }
-                fn ty(&self) -> &'static str {
+                #[inline]
+                pub(super) fn ty(&self) -> &'static str {
                     match self {
-                        my_step1::id => stringify!(UserId),
-                        my_step1::name => stringify!(&str),
+                        Self::id => stringify!(UserId),
+                        Self::name => stringify!(&str),
+                        _ => todo!(),
                     }
                 }
-                fn debug_value(&self) -> String {
+                #[inline]
+                pub(super) fn debug_value(&self) -> String {
                     match self {
-                        my_step1::id => format!("{:?}", UserId::new()),
-                        my_step1::name => format!("{:?}", "Bob"),
+                        Self::id => format!("{:?}", UserId::new()),
+                        Self::name => format!("{:?}", "Bob"),
+                        _ => todo!(),
                     }
                 }
-                fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
+                #[inline]
+                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     use serde::Serialize;
                     match self {
-                        my_step1::id => (UserId::new() as UserId).serialize(serializer),
-                        my_step1::name => ("Bob" as &str).serialize(serializer),
+                        Self::id => (UserId::new() as UserId).serialize(serializer),
+                        Self::name => ("Bob" as &str).serialize(serializer),
+                        _ => todo!(),
                     }
                 }
             }

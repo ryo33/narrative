@@ -84,15 +84,17 @@ mod tests {
             pub trait StoryExt: Sized {
                 type Error: std::error::Error;
                 /// Get the context of this story.
-                fn context() -> StoryContext<Self>;
+                fn context() -> StoryContext;
                 /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
                 fn run_all(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>>;
             }
             impl <T: UserStory> StoryExt for T {
                 type Error = T::Error;
-                fn context() -> StoryContext<Self> {
+                #[inline]
+                fn context() -> StoryContext {
                     Default::default()
                 }
+                #[inline]
                 fn run_all(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                     use narrative::step::Step;
                     use narrative::step::Run;
@@ -127,11 +129,14 @@ mod tests {
                 /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
                 async fn run_all_async(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>>;
             }
+            #[narrative::async_trait]
             impl <T: AsyncUserStory> AsyncStoryExt for T {
                 type Error = T::Error;
+                #[inline]
                 fn context() -> StoryContext {
                     Default::default()
                 }
+                #[inline]
                 async fn run_all_async(&mut self) -> Result<(), narrative::RunAllError<StepId, Self::Error>> {
                     use narrative::step::Step;
                     use narrative::step::RunAsync;

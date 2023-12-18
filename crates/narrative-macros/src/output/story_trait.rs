@@ -42,7 +42,7 @@ mod tests {
         };
         let actual = generate(&input, Asyncness::Sync);
         let expected = quote! {
-            pub trait UserStory: BaseTrait {
+            pub trait UserStory: BaseTrait + Send {
                 type Error: std::error::Error;
                 fn step1(&mut self) -> Result<(), Self::Error>;
                 fn step2(&mut self, user_id: UserId) -> Result<(), Self::Error>;
@@ -64,7 +64,7 @@ mod tests {
         let actual = generate(&input, Asyncness::Async);
         let expected = quote! {
             #[narrative::async_trait]
-            pub trait AsyncUserStory: BaseTrait {
+            pub trait AsyncUserStory: BaseTrait + Send {
                 type Error: std::error::Error;
                 async fn step1(&mut self) -> Result<(), Self::Error>;
                 async fn step2(&mut self, user_id: UserId) -> Result<(), Self::Error>;

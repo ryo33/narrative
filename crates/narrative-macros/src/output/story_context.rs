@@ -11,6 +11,7 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
     let steps = input.steps().map(|step| {
         let step_name = &step.inner.sig.ident;
         quote! {
+            #[inline]
             pub fn #step_name(&self) -> Step {
                 Step::#step_name
             }
@@ -65,9 +66,11 @@ mod tests {
             #[derive(Default)]
             pub struct StoryContext;
             impl StoryContext {
+                #[inline]
                 pub fn step1(&self) -> Step {
                     Step::step1
                 }
+                #[inline]
                 pub fn step2(&self) -> Step {
                     Step::step2
                 }
@@ -75,12 +78,15 @@ mod tests {
             impl narrative::story::StoryContext for StoryContext {
                 type Step = Step;
                 type StepIter = std::slice::Iter<'static, Self::Step>;
+                #[inline]
                 fn story_title(&self) -> String {
                     "Story Title".to_string()
                 }
+                #[inline]
                 fn story_ident(&self) -> &'static str {
                     stringify!(UserStory)
                 }
+                #[inline]
                 fn steps(&self) -> Self::StepIter {
                     [Step::step1, Step::step2].iter()
                 }

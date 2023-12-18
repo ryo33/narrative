@@ -23,7 +23,7 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         #[allow(unused_variables)]
         impl #ident for narrative::environment::DummyEnvironment {
             type Error = std::convert::Infallible;
-            #(#steps)*
+            #(#[inline] #steps)*
         }
     }
 }
@@ -45,11 +45,14 @@ mod tests {
         };
         let actual = generate(&story_syntax, Asyncness::Sync);
         let expected = quote! {
+            #[allow(unused_variables)]
             impl UserStory for narrative::environment::DummyEnvironment {
                 type Error = std::convert::Infallible;
+                #[inline]
                 fn step1(&mut self) -> Result<(), Self::Error> {
                     Ok(())
                 }
+                #[inline]
                 fn step2(&mut self) -> Result<(), Self::Error> {
                     Ok(())
                 }
@@ -71,11 +74,14 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Async);
         let expected = quote! {
             #[narrative::async_trait]
+            #[allow(unused_variables)]
             impl AsyncUserStory for narrative::environment::DummyEnvironment {
                 type Error = std::convert::Infallible;
+                #[inline]
                 async fn step1(&mut self) -> Result<(), Self::Error> {
                     Ok(())
                 }
+                #[inline]
                 async fn step2(&mut self) -> Result<(), Self::Error> {
                     Ok(())
                 }
