@@ -29,6 +29,9 @@ Key terms in this library are:
 - **Step**: a single action or assertion in a story
 - **Story Trait**: a macro-generated trait that represents a story. it has a
   method for each step.
+- **Story Context**: a struct that holds the all related information or data of
+  a story.
+- **Story Env**: a data structure that implements a story trait.
 
 ## Usage
 
