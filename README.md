@@ -1,6 +1,6 @@
 # Narrative
 
-A immensely simple library for story-driven development.
+An immensely simple library for story-driven development
 
 ## Status
 
