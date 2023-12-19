@@ -2,9 +2,9 @@
 
 An immensely simple library for story-driven development
 
-## Status
+## !!!! NOT RELEASED YET !!!!
 
-WIP to the first release.
+WIP to the first release. Published to crates.io for reserve the name.
 
 ## Overview
 
