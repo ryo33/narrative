@@ -69,18 +69,22 @@ impl MyFirstStory for MyFirstStoryImpl {
 
     fn as_a_user(&mut self) -> Result<(), Self::Error> {
         println!("Hi, I'm a user");
+        Ok(())
     }
 
     fn have_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
         self.apples = count;
+        Ok(())
     }
 
     fn have_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
         self.oranges = count;
+        Ok(())
     }
 
     fn should_have_three_fruits(&mut self, total: u32) -> Result<(), Self::Error> {
         assert_eq!(self.apples + self.oranges, total);
+        Ok(())
     }
 }
 ```
@@ -93,12 +97,10 @@ the declaration, but it's fine.
 ```rust
 fn main() {
     let mut story = MyFirstStory { apples: 0, oranges: 0 };
-    // You can get the story's title and steps.
-    let narration = story.narrate();
     // You can run the story, and get the result.
     let story_result = story.run_all();
     // You can run the story step by step.
-    for step in story.steps() {
+    for step in story.get_context().steps() {
         let step_result = step.run();
     }
 }
@@ -119,15 +121,19 @@ impl AsyncMyFirstStory for MyFirstStoryImpl {
     type Error = ();
     async fn as_a_user(&mut self) -> Result<(), Self::Error> {
         println!("Hi, I'm a user");
+        Ok(())
     }
     async fn have_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
         self.apples = count;
+        Ok(())
     }
     async fn have_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
         self.oranges = count;
+        Ok(())
     }
     async fn should_have_three_fruits(&mut self, total: u32) -> Result<(), Self::Error> {
         assert_eq!(self.apples + self.oranges, total);
+        Ok(())
     }
 }
 ```
@@ -180,15 +186,31 @@ by using "Implement missing members" feature of rust-analyzer.
 These decisions highlight Narrative's unique aspects, especially in comparison
 to [Gauge](https://gauge.org/), a well-known end-to-end testing framework.
 
-### Narrative is designed to implement stories exclusively in Rust, (though it can still be used for testing projects in other languages.)
+### ~~Narrative is designed to implement stories exclusively in Rust, (though it can still be used for testing projects in other languages.)~~
 
-Supporting other languages in Narrative would introduce a lot of complexity in
+~~Supporting other languages in Narrative would introduce a lot of complexity in
 its design, implementation, and usage. Narrative leverages Rust's core
 functionality and rust-analyzer to provide rich development experience. Rust
 wouldn't the best language for writing end-to-end tests for everyone, but, We
 believe that it still has advantages in this area, with a great compiler,
 robust, yet straightforward type system, and libraries from the vibrant
-community.
+community.~~
+
+Users can dynamically get story context, so you can implement steps in other
+programming languages, and call them in dynamic way from Rust code:
+
+```rust
+fn execute_story(context: impl narrative::StoryContext) {
+    for step in context.steps() {
+        send_to_external_process(step.text(), step.arguments().map(|arg| Argument {
+                name: arg.name(),
+                ty: arg.ty(),
+                debug: arg.debug(),
+                json: step.serialize(serde_json::value::Serializer).unwrap(),
+        }));
+    }
+}
+```
 
 ### Narrative is a library, not a framework
 
