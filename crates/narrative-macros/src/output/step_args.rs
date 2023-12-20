@@ -39,6 +39,12 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 }
             }
             #[inline]
+            fn expr(&self) -> &'static str {
+                match self.0 {
+                    #(StepArgInner::#step_names(arg) => arg.expr()),*
+                }
+            }
+            #[inline]
             fn debug_value(&self) -> String {
                 match self.0 {
                     #(StepArgInner::#step_names(arg) => arg.debug_value()),*
@@ -123,6 +129,18 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             Self::#ident => stringify!(#ty),
         }
     });
+    let expr_arms = step.fn_args().map(|(ident, _)| {
+        let expr = step
+            .find_attr_arg(ident)
+            .or_else(|| story.find_assignments(ident))
+            .map(ToTokens::into_token_stream)
+            .unwrap_or_else(
+                || quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") },
+            );
+        quote! {
+            Self::#ident => stringify!(#expr),
+        }
+    });
     let debug_arms = step.fn_args().map(|(ident, _)| {
         let expr = step
             .find_attr_arg(ident)
@@ -160,6 +178,13 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             pub(super) fn ty(&self) -> &'static str {
                 match self {
                     #(#ty_arms)*
+                    _ => todo!(),
+                }
+            }
+            #[inline]
+            pub(super) fn expr(&self) -> &'static str {
+                match self {
+                    #(#expr_arms)*
                     _ => todo!(),
                 }
             }
@@ -218,6 +243,12 @@ mod tests {
                     }
                 }
                 #[inline]
+                pub(super) fn expr(&self) -> &'static str {
+                    match self {
+                        _ => todo!(),
+                    }
+                }
+                #[inline]
                 pub(super) fn debug_value(&self) -> String {
                     match self {
                         _ => todo!(),
@@ -262,6 +293,13 @@ mod tests {
                 pub(super) fn ty(&self) -> &'static str {
                     match self {
                         Self::name => stringify!(&str),
+                        _ => todo!(),
+                    }
+                }
+                #[inline]
+                pub(super) fn expr(&self) -> &'static str {
+                    match self {
+                        Self::name => stringify!("ryo"),
                         _ => todo!(),
                     }
                 }
@@ -321,6 +359,14 @@ mod tests {
                     }
                 }
                 #[inline]
+                pub(super) fn expr(&self) -> &'static str {
+                    match self {
+                        Self::id => stringify!(UserId::new()),
+                        Self::name => stringify!("Alice"),
+                        _ => todo!(),
+                    }
+                }
+                #[inline]
                 pub(super) fn debug_value(&self) -> String {
                     match self {
                         Self::id => format!("{:?}", UserId::new()),
@@ -374,6 +420,14 @@ mod tests {
                     match self {
                         Self::id => stringify!(UserId),
                         Self::name => stringify!(&str),
+                        _ => todo!(),
+                    }
+                }
+                #[inline]
+                pub(super) fn expr(&self) -> &'static str {
+                    match self {
+                        Self::id => stringify!(UserId::new()),
+                        Self::name => stringify!("Bob"),
                         _ => todo!(),
                     }
                 }

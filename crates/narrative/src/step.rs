@@ -21,6 +21,8 @@ pub trait StepArg: Clone + std::fmt::Debug {
     fn name(&self) -> &'static str;
     /// Returns the type of the argument.
     fn ty(&self) -> &'static str;
+    /// Returns the real expression of the argument.
+    fn expr(&self) -> &'static str;
     /// Returns the debug representation of the value.
     fn debug_value(&self) -> String;
     /// Serializes the value to the given serializer.
