@@ -15,7 +15,7 @@ pub(crate) fn generate(item_story: &StoryStep, asyncness: Asyncness) -> TokenStr
     let output = match asyncness {
         Asyncness::Sync => quote!(Result<(), Self::Error>),
         Asyncness::Async => {
-            quote!(narrative::BoxFuture<'_, Result<(), Self::Error>>)
+            quote!(impl std::future::Future<Output = Result<(), Self::Error>> + Send)
         }
     };
     quote! {
@@ -74,7 +74,7 @@ mod tests {
         };
         let actual = generate(&item_story, Asyncness::Async);
         let expected = quote! {
-            fn step1(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>>
+            fn step1(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }

@@ -116,7 +116,6 @@ Story doesn't have to use async keyword, and both sync and async version are
 defined automatically.
 
 ```rust
-#[async_trait]
 impl AsyncMyFirstStory for MyFirstStoryImpl {
     type Error = ();
     async fn as_a_user(&mut self) -> Result<(), Self::Error> {

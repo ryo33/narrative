@@ -13,5 +13,4 @@ repository = "https://github.com/ryo33/narrative"
 
 [dependencies]
 narrative-macros = { version = "0.1.0", path = "../narrative-macros" }
-async-trait = "0.1"
 serde = { version = "1", features = ["derive", "rc"] }

@@ -18,10 +18,6 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         Asyncness::Sync => syn::Ident::new("StoryExt", Span::call_site()),
         Asyncness::Async => syn::Ident::new("AsyncStoryExt", Span::call_site()),
     };
-    let async_trait = match asyncness {
-        Asyncness::Sync => quote! {},
-        Asyncness::Async => quote!(#[narrative::async_trait]),
-    };
     let sig = match asyncness {
         Asyncness::Sync => quote! {fn run_all(&mut self)},
         Asyncness::Async => quote! {async fn run_all_async(&mut self)},
@@ -35,13 +31,11 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         Asyncness::Async => quote! {use narrative::step::RunAsync;},
     };
     quote! {
-        #async_trait
         pub trait #ext_ident: Sized {
             type Error: std::error::Error;
             /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
             #sig -> Result<(), Self::Error>;
         }
-        #async_trait
         impl <T: #ident> #ext_ident for T {
             type Error = T::Error;
             #[inline]
@@ -97,13 +91,11 @@ mod tests {
         };
         let actual = generate(&story_syntax, Asyncness::Async);
         let expected = quote! {
-            #[narrative::async_trait]
             pub trait AsyncStoryExt: Sized {
                 type Error: std::error::Error;
                 /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
                 async fn run_all_async(&mut self) -> Result<(), Self::Error>;
             }
-            #[narrative::async_trait]
             impl <T: AsyncUserStory> AsyncStoryExt for T {
                 type Error = T::Error;
                 #[inline]

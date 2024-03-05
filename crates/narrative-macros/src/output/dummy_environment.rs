@@ -76,11 +76,11 @@ mod tests {
             impl AsyncUserStory for narrative::environment::DummyEnvironment {
                 type Error = std::convert::Infallible;
                 #[inline]
-                fn step1(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
+                fn step1(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send {
                     Box::pin(async { Ok(()) })
                 }
                 #[inline]
-                fn step2(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
+                fn step2(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send {
                     Box::pin(async { Ok(()) })
                 }
             }

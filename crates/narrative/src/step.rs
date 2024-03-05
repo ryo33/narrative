@@ -7,13 +7,12 @@ pub trait Step {
     fn args(&self) -> Self::ArgIter;
 }
 
-pub trait Run<T, E> {
+pub trait Run<T, E>: Step {
     fn run(&self, story: &mut T) -> Result<(), E>;
 }
 
-#[async_trait::async_trait]
 pub trait RunAsync<T, E>: Step {
-    async fn run_async(&self, story: &mut T) -> Result<(), E>;
+    fn run_async(&self, story: &mut T) -> impl std::future::Future<Output = Result<(), E>> + Send;
 }
 
 pub trait StepArg: Clone + std::fmt::Debug {

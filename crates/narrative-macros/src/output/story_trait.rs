@@ -1,8 +1,3 @@
-// We use Pin<Box<dyn Future>> instead of async_trait in async mode.
-// This is because we encourage user to "Implement missing members" in IDE, and I want API to be
-// clean.
-// If async trait could be stabilized, we can use it instead.
-
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
@@ -65,8 +60,8 @@ mod tests {
         let expected = quote! {
             pub trait AsyncUserStory: BaseTrait + Send {
                 type Error: std::error::Error;
-                fn step1(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>>;
-                fn step2(&mut self, user_id: UserId) -> narrative::BoxFuture<'_, Result<(), Self::Error>>;
+                fn step1(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send;
+                fn step2(&mut self, user_id: UserId) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());

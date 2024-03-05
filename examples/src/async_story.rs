@@ -19,35 +19,23 @@ struct MyFirstStoryEnv {
 impl AsyncMyFirstStory for MyFirstStoryEnv {
     type Error = Infallible;
 
-    fn as_a_user(&mut self) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
-        Box::pin(async move { Ok(()) })
+    async fn as_a_user(&mut self) -> Result<(), Self::Error> {
+        Ok(())
     }
 
-    fn have_one_apple(&mut self, count: u32) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
-        Box::pin(async move {
-            self.sum += count;
-            Ok(())
-        })
+    async fn have_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
+        self.sum += count;
+        Ok(())
     }
 
-    fn have_two_oranges(
-        &mut self,
-        count: u32,
-    ) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
-        Box::pin(async move {
-            self.sum += count;
-            Ok(())
-        })
+    async fn have_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
+        self.sum += count;
+        Ok(())
     }
 
-    fn should_have_three_fruits(
-        &mut self,
-        total: u32,
-    ) -> narrative::BoxFuture<'_, Result<(), Self::Error>> {
-        Box::pin(async move {
-            assert_eq!(self.sum, total);
-            Ok(())
-        })
+    async fn should_have_three_fruits(&mut self, total: u32) -> Result<(), Self::Error> {
+        assert_eq!(self.sum, total);
+        Ok(())
     }
 }
 
