@@ -3,8 +3,7 @@ pub mod story_step;
 
 use syn::{
     braced,
-    parse::{Parse, ParseStream},
-    parse_quote_spanned, Token,
+    parse::{Parse, ParseStream}, Token,
 };
 
 pub use story_item::StoryItem;
