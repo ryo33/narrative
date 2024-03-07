@@ -70,12 +70,9 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
 
         impl <T: #async_story_ident> narrative::step::RunAsync<T, T::Error> for Step {
             #[inline]
-            #[allow(clippy::manual_async_fn)]
-            fn run_async(&self, story: &mut T) -> impl std::future::Future<Output = Result<(), T::Error>> + Send {
-                async move {
-                    match self {
-                        #(#step_runs_async)*
-                    }
+            async fn run_async(&self, story: &mut T) -> Result<(), T::Error> {
+                match self {
+                    #(#step_runs_async)*
                 }
             }
         }
