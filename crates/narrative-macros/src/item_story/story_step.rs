@@ -56,6 +56,28 @@ impl StoryStep {
             }
         })
     }
+
+    pub(crate) fn extract_format_args(&self) -> Vec<String> {
+        self.attr
+            .text
+            .value()
+            // remove escaped braces
+            .split("{{")
+            .flat_map(|part| part.split("}}"))
+            // iter parts that start with '{' by skipping the first split
+            .flat_map(|part| part.split('{').skip(1))
+            // take the part before the first '}'
+            .filter_map(|part| part.split_once('}').map(|(head, _)| head))
+            // remove parts after the first ':'
+            .map(|format| {
+                format
+                    .split_once(':')
+                    .map(|(head, _)| head)
+                    .unwrap_or(format)
+            })
+            .map(ToOwned::to_owned)
+            .collect()
+    }
 }
 
 #[cfg(test)]

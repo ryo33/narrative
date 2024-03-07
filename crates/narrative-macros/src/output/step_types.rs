@@ -107,11 +107,9 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
             }
         })
         .collect();
+    let extracted_format_args = step.extract_format_args();
     let format_args_from_attr = step.attr.args.iter().filter_map(|arg| {
-        if step_text
-            .value()
-            .contains(&("{".to_string() + &arg.ident.to_string() + "}"))
-        {
+        if extracted_format_args.contains(&arg.ident.to_string()) {
             let value = &arg.value;
             Some((&arg.ident, quote!(#value)))
         } else {
@@ -383,6 +381,27 @@ mod tests {
             actual.step_text.to_string(),
             quote! {
                 format!("Step 1: {name} {age}", name = "ryo")
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn test_format_with_debug() {
+        let step = parse_quote! {
+            #[step("Step 1: {name:?}", name = "ryo")]
+            fn my_step1(name: &str);
+        };
+        let story_syntax = parse_quote! {
+            trait UserStory {
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, &step);
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("Step 1: {name:?}", name = "ryo")
             }
             .to_string()
         );
