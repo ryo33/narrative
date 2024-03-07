@@ -117,16 +117,10 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         }
     });
     let format_args_from_global = story.items.iter().filter_map(|item| match item {
-        StoryItem::Let(assignment) => {
-            let syn::Pat::Ident(pat_ident) = assignment.pat.as_ref() else {
-                return None;
-            };
-            if step_text
-                .value()
-                .contains(&("{".to_string() + &pat_ident.ident.to_string() + "}"))
-            {
-                let expr = &assignment.expr;
-                Some((&pat_ident.ident, quote!(#expr)))
+        StoryItem::Const { raw, default } => {
+            if extracted_format_args.contains(&raw.ident.to_string()) {
+                let expr = &default.1;
+                Some((&raw.ident, quote!(#expr)))
             } else {
                 None
             }
@@ -321,7 +315,7 @@ mod tests {
         };
         let story_syntax = parse_quote! {
             trait UserStory {
-                let name = "ryo";
+                const name: &str = "ryo";
                 #step
             }
         };
@@ -350,7 +344,7 @@ mod tests {
         };
         let story_syntax = parse_quote! {
             trait UserStory {
-                let name = "ryo";
+                const name: &str = "ryo";
                 #step
             }
         };

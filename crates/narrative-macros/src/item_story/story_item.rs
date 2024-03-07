@@ -1,7 +1,4 @@
-use syn::{
-    parse::{Parse, ParseStream},
-    Token,
-};
+use syn::parse::{Parse, ParseStream};
 
 use super::StoryStep;
 
@@ -10,7 +7,10 @@ pub enum StoryItem {
     Trait(syn::ItemTrait),
     Struct(syn::ItemStruct),
     Enum(syn::ItemEnum),
-    Let(syn::ExprLet),
+    Const {
+        raw: syn::TraitItemConst,
+        default: (syn::Token![=], syn::Expr),
+    },
 }
 
 impl Parse for StoryItem {
@@ -23,9 +23,14 @@ impl Parse for StoryItem {
             Ok(struct_)
         } else if let Ok(enum_) = input.parse().map(Self::Enum) {
             Ok(enum_)
-        } else if let Ok(let_) = input.parse().map(Self::Let) {
-            let _ = input.parse::<Token![;]>()?;
-            Ok(let_)
+        } else if let Ok(const_) = input.parse::<syn::TraitItemConst>() {
+            let Some(default) = const_.default.clone() else {
+                return Err(input.error("in a story, all consts must have a value"));
+            };
+            Ok(Self::Const {
+                raw: const_,
+                default,
+            })
         } else {
             // I want to return more helpful error by looking ahead some tokens.
             Err(input.error("expected a step, trait, struct, enum, or let"))
@@ -65,42 +70,13 @@ mod tests {
     }
 
     #[test]
-    fn parse_struct() {
+    fn parse_const() {
         let input = quote! {
-            struct UserName(String);
+            const user_id: UserId = UserId::new_v4();
         };
-        let StoryItem::Struct(struct_) = syn::parse2(input).unwrap() else {
-            panic!("Expected a struct");
+        let StoryItem::Const { raw: const_, .. } = syn::parse2(input).unwrap() else {
+            panic!("Expected a const");
         };
-        assert_eq!(struct_.ident, "UserName");
-    }
-
-    #[test]
-    fn parse_enum() {
-        let input = quote! {
-            enum UserKind {
-                Admin,
-                Developer,
-                Normal,
-            }
-        };
-        let StoryItem::Enum(enum_) = syn::parse2(input).unwrap() else {
-            panic!("Expected an enum");
-        };
-        assert_eq!(enum_.ident, "UserKind");
-    }
-
-    #[test]
-    fn parse_let() {
-        let input = quote! {
-            let user_id = UserId::new_v4();
-        };
-        let StoryItem::Let(let_) = syn::parse2(input).unwrap() else {
-            panic!("Expected a let");
-        };
-        let syn::Pat::Ident(ident) = *let_.pat else {
-            panic!("Expected an ident");
-        };
-        assert_eq!(ident.ident.to_string(), "user_id");
+        assert_eq!(const_.ident.to_string(), "user_id");
     }
 }

@@ -129,7 +129,7 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             Self::#ident => stringify!(#ty),
         }
     });
-    let expr_arms = step.fn_args().map(|(ident, _)| {
+    let arms = step.fn_args().map(|(ident, ty)| {
         let expr = step
             .find_attr_arg(ident)
             .or_else(|| story.find_assignments(ident))
@@ -137,34 +137,15 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             .unwrap_or_else(
                 || quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") },
             );
-        quote! {
-            Self::#ident => stringify!(#expr),
-        }
-    });
-    let debug_arms = step.fn_args().map(|(ident, _)| {
-        let expr = step
-            .find_attr_arg(ident)
-            .or_else(|| story.find_assignments(ident))
-            .map(ToTokens::into_token_stream)
-            .unwrap_or_else(
-                || quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") },
-            );
-        quote! {
-            Self::#ident => format!("{:?}", #expr),
-        }
-    });
-    let serialize_arms = step.fn_args().map(|(ident, ty)| {
-        let expr = step
-            .find_attr_arg(ident)
-            .or_else(|| story.find_assignments(ident))
-            .map(ToTokens::into_token_stream)
-            .unwrap_or_else(
-                || quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") },
-            );
-        quote! {
-            Self::#ident => (#expr as #ty).serialize(serializer),
-        }
-    });
+        (
+        quote![Self::#ident => stringify!(#expr)],
+            quote![Self::#ident => format!("{:?}", #expr)],
+            quote![Self::#ident => (#expr as #ty).serialize(serializer)],
+        )
+    }).collect::<Vec<_>>();
+    let expr_arms = arms.iter().map(|(expr, _, _)| expr);
+    let debug_arms = arms.iter().map(|(_, debug, _)| debug);
+    let serialize_arms = arms.iter().map(|(_, _, serialize)| serialize);
     quote! {
         impl #step_ident {
             #[inline]
@@ -184,14 +165,14 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             #[inline]
             pub(super) fn expr(&self) -> &'static str {
                 match self {
-                    #(#expr_arms)*
+                    #(#expr_arms,)*
                     _ => todo!(),
                 }
             }
             #[inline]
             pub(super) fn debug_value(&self) -> String {
                 match self {
-                    #(#debug_arms)*
+                    #(#debug_arms,)*
                     _ => todo!(),
                 }
             }
@@ -201,7 +182,7 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
                 use narrative::serde::Serialize;
                 #[allow(unnecessary_cast)]
                 match self {
-                    #(#serialize_arms)*
+                    #(#serialize_arms,)*
                     _ => todo!(),
                 }
             }
@@ -334,8 +315,8 @@ mod tests {
         };
         let story_syntax = syn::parse_quote! {
             trait User {
-                let id = UserId::new();
-                let name = "Alice";
+                const id: UserId = UserId::new();
+                const name: &str = "Alice";
                 #step
             }
         };
@@ -399,8 +380,8 @@ mod tests {
         };
         let story_syntax = syn::parse_quote! {
             trait User {
-                let id = UserId::new();
-                let name = "Alice";
+                const id: UserId = UserId::new();
+                const name: &str = "Alice";
                 #step
             }
         };

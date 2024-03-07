@@ -79,5 +79,6 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
         pub use #mod_ident::AsyncStoryExt as _;
         pub use #mod_ident::ContextExt as _;
         pub use #mod_ident::AsyncContextExt as _;
+        pub use #mod_ident::BaseTrait as _;
     }
 }

@@ -4,7 +4,7 @@ pub mod story_step;
 use syn::{
     braced,
     parse::{Parse, ParseStream},
-    Token,
+    parse_quote_spanned, Token,
 };
 
 pub use story_item::StoryItem;
@@ -43,21 +43,17 @@ impl ItemStory {
             _ => None,
         })
     }
-    pub(crate) fn assignments(&self) -> impl Iterator<Item = (&syn::Ident, &syn::Expr)> {
-        self.items.iter().filter_map(|item| match item {
-            StoryItem::Let(assignment) => {
-                if let syn::Pat::Ident(pat_ident) = assignment.pat.as_ref() {
-                    Some((&pat_ident.ident, assignment.expr.as_ref()))
+    pub(crate) fn find_assignments<'a>(&'a self, ident: &'a syn::Ident) -> Option<&'a syn::Expr> {
+        self.items.iter().find_map(|item| match item {
+            StoryItem::Const { raw, default } => {
+                if raw.ident == *ident {
+                    Some(&default.1)
                 } else {
                     None
                 }
             }
             _ => None,
         })
-    }
-    pub(crate) fn find_assignments<'a>(&'a self, ident: &'a syn::Ident) -> Option<&'a syn::Expr> {
-        self.assignments()
-            .find_map(move |(name, expr)| if name == ident { Some(expr) } else { None })
     }
 }
 
@@ -70,16 +66,10 @@ mod tests {
     fn parse_story() {
         let input = quote! {
             trait MyFirstStory {
-                struct UserName(String);
-                enum UserKind {
-                    Admin,
-                    Developer,
-                    Normal,
-                }
                 trait UserId {
                     fn new_v4() -> Self;
                 }
-                let user_id = UserId::new_v4();
+                const user_id: UserId = UserId::new_v4();
 
                 #[step("Hi, I'm a user")]
                 fn as_a_user(user_id: UserId);
@@ -94,12 +84,10 @@ mod tests {
             items,
         } = syn::parse2(input).expect("parse a story");
         assert_eq!(ident, "MyFirstStory");
-        assert_eq!(items.len(), 6);
-        assert!(matches!(items[0], StoryItem::Struct(_)));
-        assert!(matches!(items[1], StoryItem::Enum(_)));
-        assert!(matches!(items[2], StoryItem::Trait(_)));
-        assert!(matches!(items[3], StoryItem::Let(_)));
-        assert!(matches!(items[4], StoryItem::Step(_)));
-        assert!(matches!(items[5], StoryItem::Step(_)));
+        assert_eq!(items.len(), 4);
+        assert!(matches!(items[0], StoryItem::Trait(_)));
+        assert!(matches!(items[1], StoryItem::Const { .. }));
+        assert!(matches!(items[2], StoryItem::Step(_)));
+        assert!(matches!(items[3], StoryItem::Step(_)));
     }
 }

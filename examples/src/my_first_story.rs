@@ -2,7 +2,8 @@ use std::convert::Infallible;
 
 #[narrative::story("My First Story")]
 trait MyFirstStory {
-    #[step("Hi, I'm a user")]
+    const NAME: &'static str = "Ryo";
+    #[step("Hi, I'm a user: {NAME}")]
     fn as_a_user();
     #[step("I have an apple", count = 1)]
     fn have_one_apple(count: u32);
@@ -20,6 +21,7 @@ impl MyFirstStory for MyFirstStoryEnv {
     type Error = Infallible;
 
     fn as_a_user(&mut self) -> Result<(), Self::Error> {
+        println!("Hi, I'm a user: {}", Self::NAME);
         Ok(())
     }
 

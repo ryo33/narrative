@@ -100,7 +100,7 @@ mod tests {
                     id: i32,
                     name: String,
                 }
-            } 
+            }
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }

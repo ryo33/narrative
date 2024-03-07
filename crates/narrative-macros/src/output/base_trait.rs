@@ -32,13 +32,28 @@ pub fn generate(input: &ItemStory) -> TokenStream {
             type #ident #generics = #ident #no_bound;
         })
     });
+    let consts = input.items.iter().filter_map(|item| {
+        let (ident, ty) = match item {
+            StoryItem::Const { raw, .. } => (&raw.ident, &raw.ty),
+            _ => return None,
+        };
+        Some(quote! {
+            const #ident: #ty;
+        })
+    });
+    let consts_assigns = input.items.iter().filter_map(|item| match item {
+        StoryItem::Const { raw, .. } => Some(raw),
+        _ => None,
+    });
     quote! {
         pub trait BaseTrait {
             #(#types)*
+            #(#consts)*
             type Context: narrative::story::StoryContext;
         }
         impl<T> BaseTrait for T {
             #(#types_assigns)*
+            #(#consts_assigns)*
             type Context = StoryContext;
         }
     }
