@@ -14,7 +14,8 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
     });
     quote! {
         pub trait #ident: BaseTrait + Send {
-            type Error: std::error::Error;
+            // no std::error::Error bound here for flexibility in use
+            type Error;
             #(#steps;)*
         }
     }
@@ -38,7 +39,7 @@ mod tests {
         let actual = generate(&input, Asyncness::Sync);
         let expected = quote! {
             pub trait UserStory: BaseTrait + Send {
-                type Error: std::error::Error;
+                type Error;
                 fn step1(&mut self) -> Result<(), Self::Error>;
                 fn step2(&mut self, user_id: UserId) -> Result<(), Self::Error>;
             }
@@ -59,7 +60,7 @@ mod tests {
         let actual = generate(&input, Asyncness::Async);
         let expected = quote! {
             pub trait AsyncUserStory: BaseTrait + Send {
-                type Error: std::error::Error;
+                type Error;
                 fn step1(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send;
                 fn step2(&mut self, user_id: UserId) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send;
             }

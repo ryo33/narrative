@@ -15,7 +15,7 @@ pub mod prelude {
     pub use crate::story::StoryContext as _;
 }
 
-pub struct RunAllError<T, E: std::error::Error> {
+pub struct RunAllError<T, E> {
     pub step_id: T,
     pub error: E,
 }

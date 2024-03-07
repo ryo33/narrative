@@ -32,7 +32,7 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
     };
     quote! {
         pub trait #ext_ident: Sized {
-            type Error: std::error::Error;
+            type Error;
             /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
             #sig -> Result<(), Self::Error>;
         }
@@ -64,7 +64,7 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Sync);
         let expected = quote! {
             pub trait StoryExt: Sized {
-                type Error: std::error::Error;
+                type Error;
                 /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
                 fn run_all(&mut self) -> Result<(), Self::Error>;
             }
@@ -92,7 +92,7 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Async);
         let expected = quote! {
             pub trait AsyncStoryExt: Sized {
-                type Error: std::error::Error;
+                type Error;
                 /// Run all steps of the story. This is a shortcut to iterate all steps and run them.
                 async fn run_all_async(&mut self) -> Result<(), Self::Error>;
             }
