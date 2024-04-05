@@ -149,20 +149,22 @@ the benefits without adding any dependency to the story, we can define new
 struct or trait that strongly coupled to only the story, and use it as an
 associated type of the story trait.
 
-Don't worry the collision of the trait/struct names, it has a separate namespace
+Don't worry about the collision of the trait/struct names, it has a separate namespace
 than other stories.
 
 ```rust
 #[narrative::story("This is my first story")]
 trait MyFirstStory {
-    struct UserName(String);
-
-    trait UserId {
-        /// Generate a new user id with random uuid v4.
-        fn new_v4() -> Self;
+    fn data() {
+        struct UserName(String);
+    
+        trait UserId {
+            /// Generate a new user id with random uuid v4.
+            fn new_v4() -> Self;
+        }
     }
 
-    let user_id = Self::UserId::new_v4();
+    const user_id: UserId = Self::UserId::new_v4();
 
     #[step("I'm a user with id: {id}", id = user_id, name = UserName("Alice".to_string()))]
     fn as_a_user(id: Self::UserId, name: UserName);
@@ -237,7 +239,9 @@ the core features.
 - parallelization
 - error reporting
 
-### Narrative uses declaration of trait for stories
+### Narrative uses a declaration of trait to write a story
+
+In other words, a story is an interface and step implementation depends on it.
 
 Gauge uses markdown, and it's a great format for writing specifications,
 documents, and stories while readable by non programmer. But, it's not the best
