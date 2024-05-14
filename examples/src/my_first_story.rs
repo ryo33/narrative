@@ -43,5 +43,10 @@ impl MyFirstStory for MyFirstStoryEnv {
 
 #[test]
 fn test() {
-    let _ = MyFirstStoryEnv { sum: 0 }.run_all();
+    MyFirstStoryEnv { sum: 0 }.run_all().unwrap();
+}
+
+#[test]
+fn test_context() {
+    assert_eq!(MyFirstStoryContext::NAME, "Ryo");
 }

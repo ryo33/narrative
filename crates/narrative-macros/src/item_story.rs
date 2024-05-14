@@ -1,13 +1,17 @@
+pub mod story_const;
 pub mod story_item;
 pub mod story_step;
 
 use syn::{
     braced,
-    parse::{Parse, ParseStream}, Token,
+    parse::{Parse, ParseStream},
+    Token,
 };
 
 pub use story_item::StoryItem;
 pub use story_step::StoryStep;
+
+use self::story_const::StoryConst;
 
 pub struct ItemStory {
     pub trait_token: Token![trait],
@@ -36,6 +40,12 @@ impl Parse for ItemStory {
 }
 
 impl ItemStory {
+    pub(crate) fn consts(&self) -> impl Iterator<Item = &StoryConst> {
+        self.items.iter().filter_map(|item| match item {
+            StoryItem::Const(item) => Some(item),
+            _ => None,
+        })
+    }
     pub(crate) fn steps(&self) -> impl Iterator<Item = &StoryStep> {
         self.items.iter().filter_map(|item| match item {
             StoryItem::Step(step) => Some(step),
@@ -43,15 +53,12 @@ impl ItemStory {
         })
     }
     pub(crate) fn find_assignments<'a>(&'a self, ident: &'a syn::Ident) -> Option<&'a syn::Expr> {
-        self.items.iter().find_map(|item| match item {
-            StoryItem::Const { raw, default } => {
-                if raw.ident == *ident {
-                    Some(&default.1)
-                } else {
-                    None
-                }
+        self.consts().find_map(|StoryConst { raw, default }| {
+            if raw.ident == *ident {
+                Some(&default.1)
+            } else {
+                None
             }
-            _ => None,
         })
     }
 }

@@ -82,7 +82,7 @@ fn generate_debug_impl(step: &StoryStep) -> TokenStream {
         impl std::fmt::Debug for #step_ident {
             #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "{name}: {ty} = {debug}", name = self.name(), ty = self.ty(), debug = self.debug_value())
+                write!(f, "{name}: {ty} = {expr}", name = self.name(), ty = self.ty(), expr = self.expr())
             }
         }
     }
@@ -107,10 +107,12 @@ fn generate_serialize_impl(step: &StoryStep) -> TokenStream {
             #[inline]
             fn serialize<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                 use narrative::serde::ser::SerializeMap;
-                let mut map = serializer.serialize_map(Some(3))?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("name", self.name())?;
                 map.serialize_entry("ty", self.ty())?;
+                map.serialize_entry("expr", &self.expr())?;
                 map.serialize_entry("debug", &self.debug_value())?;
+                map.serialize_entry("value", self)?;
                 map.end()
             }
         }

@@ -14,6 +14,7 @@ mod story_trait;
 
 mod step_args;
 mod step_types;
+mod story_consts;
 mod story_context;
 mod story_ext;
 
@@ -32,11 +33,14 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     let mod_ident = format_ident!("mod_{}", item.ident);
     let ident = &item.ident;
     let async_ident = format_ident!("Async{}", item.ident);
-    let base_trait = base_trait::generate(item);
+    let context_ident = format_ident!("{}Context", item.ident);
+    let base_trait = base_trait::generate(item, Asyncness::Sync);
+    let async_base_trait = base_trait::generate(item, Asyncness::Async);
     let story_trait = story_trait::generate(item, Asyncness::Sync);
     let async_story_trait = story_trait::generate(item, Asyncness::Async);
     let step_args = step_args::generate(item);
     let step_types = step_types::generate(item);
+    let story_consts = story_consts::generate(item);
     let story_context = story_context::generate(attr, item);
     let context_ext = story_context::generate_ext(item);
     let story_ext = story_ext::generate(item, Asyncness::Sync);
@@ -55,10 +59,12 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
         #[allow(non_snake_case)]
         mod #mod_ident {
             #base_trait
+            #async_base_trait
             #story_trait
             #async_story_trait
             #step_args
             #step_types
+            #story_consts
             #story_context
             #context_ext
             #story_ext
@@ -75,6 +81,8 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
         pub use #mod_ident::#ident;
         #[allow(unused_imports)]
         pub use #mod_ident::#async_ident;
+        #[allow(unused_imports)]
+        pub use #mod_ident::StoryContext as #context_ident;
         pub use #mod_ident::StoryExt as _;
         pub use #mod_ident::AsyncStoryExt as _;
         pub use #mod_ident::ContextExt as _;

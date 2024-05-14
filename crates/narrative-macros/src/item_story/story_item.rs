@@ -1,16 +1,13 @@
 use syn::parse::{Parse, ParseStream};
 
-use super::StoryStep;
+use super::{story_const::StoryConst, StoryStep};
 
 pub enum StoryItem {
     Step(StoryStep),
     Trait(syn::ItemTrait),
     Struct(syn::ItemStruct),
     Enum(syn::ItemEnum),
-    Const {
-        raw: syn::TraitItemConst,
-        default: (syn::Token![=], syn::Expr),
-    },
+    Const(StoryConst),
 }
 
 impl Parse for StoryItem {
@@ -27,10 +24,10 @@ impl Parse for StoryItem {
             let Some(default) = const_.default.clone() else {
                 return Err(input.error("in a story, all consts must have a value"));
             };
-            Ok(Self::Const {
+            Ok(Self::Const(StoryConst {
                 raw: const_,
                 default,
-            })
+            }))
         } else {
             // I want to return more helpful error by looking ahead some tokens.
             Err(input.error("expected a step, trait, struct, enum, or let"))
@@ -74,7 +71,7 @@ mod tests {
         let input = quote! {
             const user_id: UserId = UserId::new_v4();
         };
-        let StoryItem::Const { raw: const_, .. } = syn::parse2(input).unwrap() else {
+        let StoryItem::Const(StoryConst { raw: const_, .. }) = syn::parse2(input).unwrap() else {
             panic!("Expected a const");
         };
         assert_eq!(const_.ident.to_string(), "user_id");

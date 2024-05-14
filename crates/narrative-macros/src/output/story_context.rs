@@ -3,7 +3,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::{item_story::ItemStory, story_attr_syntax::StoryAttr};
+use crate::{
+    item_story::{story_const::StoryConst, ItemStory},
+    story_attr_syntax::StoryAttr,
+};
 
 pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
     let title = &attr.title;
@@ -18,15 +21,31 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
         }
     });
     let step_names = input.steps().map(|step| &step.inner.sig.ident);
+    let consts = input.consts().map(|item| &item.raw.ident);
+    let consts_defs = input.consts().map(
+        |StoryConst {
+             raw,
+             default: (eq, default),
+         }| {
+            let ident = &raw.ident;
+            let ty = &raw.ty;
+            Some(quote! {
+                pub const #ident: #ty #eq #default;
+            })
+        },
+    );
     quote! {
         #[derive(Default)]
         pub struct StoryContext;
         impl StoryContext {
+            #(#consts_defs)*
             #(#steps)*
         }
         impl narrative::story::StoryContext for StoryContext {
             type Step = Step;
+            type Const = StoryConst;
             type StepIter = std::slice::Iter<'static, Self::Step>;
+            type ConstIter = std::slice::Iter<'static, Self::Const>;
             #[inline]
             fn story_title(&self) -> String {
                 #title.to_string()
@@ -38,6 +57,10 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
             #[inline]
             fn steps(&self) -> Self::StepIter {
                 [#(Step::#step_names),*].iter()
+            }
+            #[inline]
+            fn consts(&self) -> Self::ConstIter {
+                [#(StoryConst::#consts),*].iter()
             }
         }
     }
@@ -90,6 +113,9 @@ mod tests {
         };
         let story_syntax = syn::parse_quote! {
             trait UserStory {
+                const NAME: &str = "Ryo";
+                const AGE: u32 = 20;
+
                 #[step("step1")]
                 fn step1();
                 #[step("step2: {name}", name = "ryo")]
@@ -101,6 +127,9 @@ mod tests {
             #[derive(Default)]
             pub struct StoryContext;
             impl StoryContext {
+                pub const NAME: &str = "Ryo";
+                pub const AGE: u32 = 20;
+
                 #[inline]
                 pub fn step1(&self) -> Step {
                     Step::step1
@@ -112,7 +141,9 @@ mod tests {
             }
             impl narrative::story::StoryContext for StoryContext {
                 type Step = Step;
+                type Const = StoryConst;
                 type StepIter = std::slice::Iter<'static, Self::Step>;
+                type ConstIter = std::slice::Iter<'static, Self::Const>;
                 #[inline]
                 fn story_title(&self) -> String {
                     "Story Title".to_string()
@@ -124,6 +155,10 @@ mod tests {
                 #[inline]
                 fn steps(&self) -> Self::StepIter {
                     [Step::step1, Step::step2].iter()
+                }
+                #[inline]
+                fn consts(&self) -> Self::ConstIter {
+                    [StoryConst::NAME, StoryConst::AGE].iter()
                 }
             }
         };

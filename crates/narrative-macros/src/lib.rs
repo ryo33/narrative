@@ -34,3 +34,12 @@ pub(crate) enum Asyncness {
     Sync,
     Async,
 }
+
+impl quote::ToTokens for Asyncness {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Asyncness::Sync => quote::quote!().to_tokens(tokens),
+            Asyncness::Async => quote::quote!(async).to_tokens(tokens),
+        }
+    }
+}

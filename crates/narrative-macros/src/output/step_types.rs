@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::item_story::{ItemStory, StoryItem, StoryStep};
+use crate::item_story::{story_const::StoryConst, ItemStory, StoryStep};
 
 pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let story_ident = &story.ident;
@@ -113,16 +113,13 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
             None
         }
     });
-    let format_args_from_global = story.items.iter().filter_map(|item| match item {
-        StoryItem::Const { raw, default } => {
-            if extracted_format_args.contains(&raw.ident.to_string()) {
-                let expr = &default.1;
-                Some((&raw.ident, quote!(#expr)))
-            } else {
-                None
-            }
+    let format_args_from_global = story.consts().filter_map(|StoryConst { raw, default }| {
+        if extracted_format_args.contains(&raw.ident.to_string()) {
+            let expr = &default.1;
+            Some((&raw.ident, quote!(#expr)))
+        } else {
+            None
         }
-        _ => None,
     });
     let format_args = format_args_from_attr
         .chain(format_args_from_global)
