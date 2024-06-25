@@ -1,6 +1,6 @@
 [package]
 name = "narrative"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 description = "An immensely simple library for story-driven development"
 categories = ["development-tools::testing"]
@@ -12,5 +12,5 @@ repository = "https://github.com/ryo33/narrative"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-narrative-macros = { version = "0.5.1", path = "../narrative-macros" }
+narrative-macros = { version = "0.5.3", path = "../narrative-macros" }
 serde = { version = "1", features = ["derive", "rc"] }
