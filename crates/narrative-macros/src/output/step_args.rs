@@ -5,7 +5,10 @@
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 
-use crate::item_story::{ItemStory, StoryStep};
+use crate::{
+    item_story::{ItemStory, StoryStep},
+    output::MatchArms,
+};
 
 pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let step_names: Vec<_> = story.steps().map(|step| &step.inner.sig.ident).collect();
@@ -121,16 +124,22 @@ fn generate_serialize_impl(step: &StoryStep) -> TokenStream {
 
 fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
     let step_ident = &step.inner.sig.ident;
-    let name_arms = step.fn_args().map(|(ident, _)| {
-        quote! {
-            Self::#ident => stringify!(#ident),
-        }
-    });
-    let ty_arms = step.fn_args().map(|(ident, ty)| {
-        quote! {
-            Self::#ident => stringify!(#ty),
-        }
-    });
+    let name_arms = step
+        .fn_args()
+        .map(|(ident, _)| {
+            quote! {
+                Self::#ident => stringify!(#ident),
+            }
+        })
+        .collect::<MatchArms>();
+    let ty_arms = step
+        .fn_args()
+        .map(|(ident, ty)| {
+            quote! {
+                Self::#ident => stringify!(#ty),
+            }
+        })
+        .collect::<MatchArms>();
     let arms = step.fn_args().map(|(ident, ty)| {
         let expr = step
             .find_attr_arg(ident)
@@ -140,53 +149,44 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
                 || quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") },
             );
         (
-        quote![Self::#ident => stringify!(#expr)],
-            quote![Self::#ident => format!("{:?}", #expr)],
-            quote![Self::#ident => (#expr as #ty).serialize(serializer)],
+            quote![Self::#ident => stringify!(#expr),],
+            quote![Self::#ident => format!("{:?}", #expr),],
+            quote![Self::#ident => (#expr as #ty).serialize(serializer),],
         )
     }).collect::<Vec<_>>();
-    let expr_arms = arms.iter().map(|(expr, _, _)| expr);
-    let debug_arms = arms.iter().map(|(_, debug, _)| debug);
-    let serialize_arms = arms.iter().map(|(_, _, serialize)| serialize);
+    let expr_arms = arms.iter().map(|(expr, _, _)| expr).collect::<MatchArms>();
+    let debug_arms = arms
+        .iter()
+        .map(|(_, debug, _)| debug)
+        .collect::<MatchArms>();
+    let serialize_arms = arms
+        .iter()
+        .map(|(_, _, serialize)| serialize)
+        .collect::<MatchArms>();
     quote! {
         impl #step_ident {
             #[inline]
             pub(super) fn name(&self) -> &'static str {
-                match self {
-                    #(#name_arms)*
-                    _ => todo!(),
-                }
+                #name_arms
             }
             #[inline]
             pub(super) fn ty(&self) -> &'static str {
-                match self {
-                    #(#ty_arms)*
-                    _ => todo!(),
-                }
+                #ty_arms
             }
             #[inline]
             pub(super) fn expr(&self) -> &'static str {
-                match self {
-                    #(#expr_arms,)*
-                    _ => todo!(),
-                }
+                #expr_arms
             }
             #[inline]
             pub(super) fn debug_value(&self) -> String {
-                match self {
-                    #(#debug_arms,)*
-                    _ => todo!(),
-                }
+                #debug_arms
             }
             #[inline]
             pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                 #[allow(unused_imports)]
                 use narrative::serde::Serialize;
                 #[allow(unnecessary_cast)]
-                match self {
-                    #(#serialize_arms,)*
-                    _ => todo!(),
-                }
+                #serialize_arms
             }
         }
     }
@@ -215,36 +215,26 @@ mod tests {
             impl my_step1 {
                 #[inline]
                 pub(super) fn name(&self) -> &'static str {
-                    match self {
-                        _ => todo!(),
-                    }
+                    unreachable!()
                 }
                 #[inline]
                 pub(super) fn ty(&self) -> &'static str {
-                    match self {
-                        _ => todo!(),
-                    }
+                    unreachable!()
                 }
                 #[inline]
                 pub(super) fn expr(&self) -> &'static str {
-                    match self {
-                        _ => todo!(),
-                    }
+                    unreachable!()
                 }
                 #[inline]
                 pub(super) fn debug_value(&self) -> String {
-                    match self {
-                        _ => todo!(),
-                    }
+                    unreachable!()
                 }
                 #[inline]
                 pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                     #[allow(unused_imports)]
                     use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
-                    match self {
-                        _ => todo!(),
-                    }
+                    unreachable!()
                 }
             }
         };
@@ -269,28 +259,24 @@ mod tests {
                 pub(super) fn name(&self) -> &'static str {
                     match self {
                         Self::name => stringify!(name),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
                 pub(super) fn ty(&self) -> &'static str {
                     match self {
                         Self::name => stringify!(&str),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
                 pub(super) fn expr(&self) -> &'static str {
                     match self {
                         Self::name => stringify!("ryo"),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
                 pub(super) fn debug_value(&self) -> String {
                     match self {
                         Self::name => format!("{:?}", "ryo"),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -300,7 +286,6 @@ mod tests {
                     #[allow(unnecessary_cast)]
                     match self {
                         Self::name => ("ryo" as &str).serialize(serializer),
-                        _ => todo!(),
                     }
                 }
             }
@@ -330,7 +315,6 @@ mod tests {
                     match self {
                         Self::id => stringify!(id),
                         Self::name => stringify!(name),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -338,7 +322,6 @@ mod tests {
                     match self {
                         Self::id => stringify!(UserId),
                         Self::name => stringify!(&str),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -346,7 +329,6 @@ mod tests {
                     match self {
                         Self::id => stringify!(UserId::new()),
                         Self::name => stringify!("Alice"),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -354,7 +336,6 @@ mod tests {
                     match self {
                         Self::id => format!("{:?}", UserId::new()),
                         Self::name => format!("{:?}", "Alice"),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -365,7 +346,6 @@ mod tests {
                     match self {
                         Self::id => (UserId::new() as UserId).serialize(serializer),
                         Self::name => ("Alice" as &str).serialize(serializer),
-                        _ => todo!(),
                     }
                 }
             }
@@ -395,7 +375,6 @@ mod tests {
                     match self {
                         Self::id => stringify!(id),
                         Self::name => stringify!(name),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -403,7 +382,6 @@ mod tests {
                     match self {
                         Self::id => stringify!(UserId),
                         Self::name => stringify!(&str),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -411,7 +389,6 @@ mod tests {
                     match self {
                         Self::id => stringify!(UserId::new()),
                         Self::name => stringify!("Bob"),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -419,7 +396,6 @@ mod tests {
                     match self {
                         Self::id => format!("{:?}", UserId::new()),
                         Self::name => format!("{:?}", "Bob"),
-                        _ => todo!(),
                     }
                 }
                 #[inline]
@@ -430,7 +406,6 @@ mod tests {
                     match self {
                         Self::id => (UserId::new() as UserId).serialize(serializer),
                         Self::name => ("Bob" as &str).serialize(serializer),
-                        _ => todo!(),
                     }
                 }
             }

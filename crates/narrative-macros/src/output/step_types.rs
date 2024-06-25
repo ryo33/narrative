@@ -1,7 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::item_story::{story_const::StoryConst, ItemStory, StoryStep};
+use crate::{
+    item_story::{story_const::StoryConst, ItemStory, StoryStep},
+    output::MatchArms,
+};
 
 pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let story_ident = &story.ident;
@@ -11,25 +14,34 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         .steps()
         .map(|step| generate_step(story, step))
         .collect();
-    let step_texts = steps.iter().map(
-        |StepSegments {
-             ident, step_text, ..
-         }| quote!(Self::#ident => { #step_text }),
-    );
-    let step_idents = steps
+    let step_texts: MatchArms = steps
         .iter()
-        .map(|StepSegments { ident, idents, .. }| quote!(Self::#ident => { #idents }));
-    let step_args = steps
+        .map(
+            |StepSegments {
+                 ident, step_text, ..
+             }| quote!(Self::#ident => { #step_text }),
+        )
+        .collect();
+    let step_idents: MatchArms = steps
         .iter()
-        .map(|StepSegments { ident, args, .. }| quote!(Self::#ident => { #args }));
-    let step_runs = steps
+        .map(|StepSegments { ident, idents, .. }| quote!(Self::#ident => { #idents }))
+        .collect();
+    let step_args: MatchArms = steps
         .iter()
-        .map(|StepSegments { ident, run, .. }| quote!(Self::#ident => { #run }));
-    let step_runs_async = steps.iter().map(
-        |StepSegments {
-             ident, run_async, ..
-         }| quote!(Self::#ident => { #run_async }),
-    );
+        .map(|StepSegments { ident, args, .. }| quote!(Self::#ident => { #args }))
+        .collect();
+    let step_runs: MatchArms = steps
+        .iter()
+        .map(|StepSegments { ident, run, .. }| quote!(Self::#ident => { #run }))
+        .collect();
+    let step_runs_async: MatchArms = steps
+        .iter()
+        .map(
+            |StepSegments {
+                 ident, run_async, ..
+             }| quote!(Self::#ident => { #run_async }),
+        )
+        .collect();
 
     quote! {
         #[allow(non_camel_case_types)]
@@ -41,39 +53,29 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             type ArgIter = std::slice::Iter<'static, Self::Arg>;
             #[inline]
             fn step_text(&self) -> String {
-                match self {
-                    #(#step_texts)*
-                }
+                #step_texts
             }
             #[inline]
             fn step_id(&self) -> &'static str {
-                match self {
-                    #(#step_idents)*
-                }
+                #step_idents
             }
             #[inline]
             fn args(&self) -> Self::ArgIter {
-                match self {
-                    #(#step_args)*
-                }
+                #step_args
             }
         }
 
         impl <T: #story_ident> narrative::step::Run<T, T::Error> for Step {
             #[inline]
             fn run(&self, story: &mut T) -> Result<(), T::Error> {
-                match self {
-                    #(#step_runs)*
-                }
+                #step_runs
             }
         }
 
         impl <T: #async_story_ident> narrative::step::RunAsync<T, T::Error> for Step {
             #[inline]
             async fn run_async(&self, story: &mut T) -> Result<(), T::Error> {
-                match self {
-                    #(#step_runs_async)*
-                }
+                #step_runs_async
             }
         }
     }

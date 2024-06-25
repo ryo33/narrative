@@ -12,6 +12,7 @@ trait MyFirstStory {
     fn should_have_three_fruits(total: u32);
 }
 
+#[allow(dead_code)]
 struct MyFirstStoryEnv {
     sum: u32,
 }

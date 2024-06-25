@@ -5,23 +5,29 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::item_story::ItemStory;
+use crate::{item_story::ItemStory, output::MatchArms};
 
 pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let const_names = story.consts().map(|item| &item.raw.ident);
-    let name_arms = story.consts().map(|item| {
-        let ident = &item.raw.ident;
-        quote! {
-            StoryConst::#ident => stringify!(#ident),
-        }
-    });
-    let ty_arms = story.consts().map(|item| {
-        let ident = &item.raw.ident;
-        let ty = &item.raw.ty;
-        quote! {
-            StoryConst::#ident => stringify!(#ty),
-        }
-    });
+    let name_arms = story
+        .consts()
+        .map(|item| {
+            let ident = &item.raw.ident;
+            quote! {
+                StoryConst::#ident => stringify!(#ident),
+            }
+        })
+        .collect::<MatchArms>();
+    let ty_arms = story
+        .consts()
+        .map(|item| {
+            let ident = &item.raw.ident;
+            let ty = &item.raw.ty;
+            quote! {
+                StoryConst::#ident => stringify!(#ty),
+            }
+        })
+        .collect::<MatchArms>();
     let arms = story
         .consts()
         .map(|item| {
@@ -35,9 +41,15 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             )
         })
         .collect::<Vec<_>>();
-    let expr_arms = arms.iter().map(|(expr, _, _)| expr);
-    let debug_arms = arms.iter().map(|(_, debug, _)| debug);
-    let serialize_arms = arms.iter().map(|(_, _, serialize)| serialize);
+    let expr_arms = arms.iter().map(|(expr, _, _)| expr).collect::<MatchArms>();
+    let debug_arms = arms
+        .iter()
+        .map(|(_, debug, _)| debug)
+        .collect::<MatchArms>();
+    let serialize_arms = arms
+        .iter()
+        .map(|(_, _, serialize)| serialize)
+        .collect::<MatchArms>();
     quote! {
         #[derive(Clone, Copy)]
         #[allow(non_camel_case_types)]
@@ -48,40 +60,25 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         impl narrative::story::StoryConst for StoryConst {
             #[inline]
             fn name(&self) -> &'static str {
-                match self {
-                    #(#name_arms)*
-                    _ => unreachable!(),
-                }
+                #name_arms
             }
             #[inline]
             fn ty(&self) -> &'static str {
-                match self {
-                    #(#ty_arms)*
-                    _ => unreachable!(),
-                }
+                #ty_arms
             }
             #[inline]
             fn expr(&self) -> &'static str {
-                match self {
-                    #(#expr_arms,)*
-                    _ => unreachable!(),
-                }
+                #expr_arms
             }
             #[inline]
             fn debug_value(&self) -> String {
-                match self {
-                    #(#debug_arms,)*
-                    _ => unreachable!(),
-                }
+                #debug_arms
             }
             #[inline]
             fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                 #[allow(unused_imports)]
                 use narrative::serde::Serialize;
-                match self {
-                    #(#serialize_arms,)*
-                    _ => unreachable!(),
-                }
+                #serialize_arms
             }
         }
 
@@ -136,35 +133,25 @@ mod tests {
                 impl narrative::story::StoryConst for StoryConst {
                     #[inline]
                     fn name(&self) -> &'static str {
-                        match self {
-                            _ => unreachable!(),
-                        }
+                        unreachable!()
                     }
                     #[inline]
                     fn ty(&self) -> &'static str {
-                        match self {
-                            _ => unreachable!(),
-                        }
+                        unreachable!()
                     }
                     #[inline]
                     fn expr(&self) -> &'static str {
-                        match self {
-                            _ => unreachable!(),
-                        }
+                        unreachable!()
                     }
                     #[inline]
                     fn debug_value(&self) -> String {
-                        match self {
-                            _ => unreachable!(),
-                        }
+                        unreachable!()
                     }
                     #[inline]
                     fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                         #[allow(unused_imports)]
                         use narrative::serde::Serialize;
-                        match self {
-                            _ => unreachable!(),
-                        }
+                        unreachable!()
                     }
                 }
 

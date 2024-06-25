@@ -14,8 +14,10 @@ pub use story_step::StoryStep;
 use self::story_const::StoryConst;
 
 pub struct ItemStory {
+    #[allow(dead_code)]
     pub trait_token: Token![trait],
     pub ident: syn::Ident,
+    #[allow(dead_code)]
     pub brace_token: syn::token::Brace,
     pub items: Vec<StoryItem>,
 }

@@ -8,6 +8,7 @@ trait HelloWorld {
     fn say_world();
 }
 
+#[allow(dead_code)]
 struct Env {
     buf: BufWriter<Vec<u8>>,
 }

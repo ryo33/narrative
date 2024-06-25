@@ -20,7 +20,7 @@ pub fn generate(input: &syn::ItemStruct) -> TokenStream {
             quote!({ #(#iter)* })
         }
         syn::Fields::Unnamed(unnamed) => {
-            let iter = unnamed.unnamed.iter().enumerate().map(|(_, field)| {
+            let iter = unnamed.unnamed.iter().map(|field| {
                 let attrs = &field.attrs;
                 let ty = &field.ty;
                 quote! {
