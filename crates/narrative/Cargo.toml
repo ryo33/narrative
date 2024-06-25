@@ -1,6 +1,6 @@
 [package]
 name = "narrative"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 description = "An immensely simple library for story-driven development"
 categories = ["development-tools::testing"]
