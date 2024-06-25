@@ -35,9 +35,9 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             let ty = &item.raw.ty;
             let expr = &item.default.1;
             (
-                quote![StoryConst::#ident => stringify!(#expr)],
-                quote![StoryConst::#ident => format!("{:?}", #expr)],
-                quote![StoryConst::#ident => (#expr as #ty).serialize(serializer)],
+                quote![StoryConst::#ident => stringify!(#expr),],
+                quote![StoryConst::#ident => format!("{:?}", #expr),],
+                quote![StoryConst::#ident => (#expr as #ty).serialize(serializer),],
             )
         })
         .collect::<Vec<_>>();
