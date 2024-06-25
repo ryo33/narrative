@@ -2,6 +2,8 @@
 trait Consts {
     const NAME: &'static str = "Ryo";
     const ID: &'static str = "ryo33";
+    #[step("dummy")]
+    fn dummy_step();
 }
 
 #[test]
