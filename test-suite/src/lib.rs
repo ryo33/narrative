@@ -1,6 +1,8 @@
 #![cfg(test)]
+#![deny(clippy::all)]
 
 mod step_arg;
+mod story_consts;
 
 macro_rules! run_test {
     ($context:expr, $env:expr) => {

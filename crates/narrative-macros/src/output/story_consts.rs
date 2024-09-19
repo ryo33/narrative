@@ -36,8 +36,14 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             let expr = &item.default.1;
             (
                 quote![StoryConst::#ident => stringify!(#expr),],
-                quote![StoryConst::#ident => format!("{:?}", #expr),],
-                quote![StoryConst::#ident => (#expr as #ty).serialize(serializer),],
+                quote![StoryConst::#ident => {
+                    let #ident: #ty = #expr;
+                    format!("{:?}", #ident)
+                }],
+                quote![StoryConst::#ident => {
+                    let #ident: #ty = #expr;
+                    #ident.serialize(serializer)
+                }],
             )
         })
         .collect::<Vec<_>>();
@@ -152,6 +158,93 @@ mod tests {
                         #[allow(unused_imports)]
                         use narrative::serde::Serialize;
                         unreachable!()
+                    }
+                }
+
+                impl std::fmt::Debug for StoryConst {
+                    #[inline]
+                    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        use narrative::story::StoryConst;
+                        write!(f, "{name}: {ty} = {expr}", name = self.name(), ty = self.ty(), expr = self.expr())
+                    }
+                }
+
+                impl narrative::serde::Serialize for StoryConst {
+                    #[inline]
+                    fn serialize<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
+                        use narrative::story::StoryConst;
+                        use narrative::serde::ser::SerializeMap;
+                        let mut map = serializer.serialize_map(Some(5))?;
+                        map.serialize_entry("name", self.name())?;
+                        map.serialize_entry("ty", self.ty())?;
+                        map.serialize_entry("expr", &self.expr())?;
+                        map.serialize_entry("debug", &self.debug_value())?;
+                        map.serialize_entry("value", self)?;
+                        map.end()
+                    }
+                }
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn consts() {
+        let story = parse_quote! {
+            trait User {
+                const NUMBER: u32 = 42;
+            }
+        };
+
+        let actual = generate(&story);
+
+        assert_eq!(
+            actual.to_string(),
+            quote! {
+                #[derive(Clone, Copy)]
+                #[allow(non_camel_case_types)]
+                pub enum StoryConst {
+                    NUMBER
+                }
+
+                impl narrative::story::StoryConst for StoryConst {
+                    #[inline]
+                    fn name(&self) -> &'static str {
+                        match self {
+                            StoryConst::NUMBER => stringify!(NUMBER),
+                        }
+                    }
+                    #[inline]
+                    fn ty(&self) -> &'static str {
+                        match self {
+                            StoryConst::NUMBER => stringify!(u32),
+                        }
+                    }
+                    #[inline]
+                    fn expr(&self) -> &'static str {
+                        match self {
+                            StoryConst::NUMBER => stringify!(42),
+                        }
+                    }
+                    #[inline]
+                    fn debug_value(&self) -> String {
+                        match self {
+                            StoryConst::NUMBER => {
+                                let NUMBER: u32 = 42;
+                                format!("{:?}", NUMBER)
+                            }
+                        }
+                    }
+                    #[inline]
+                    fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
+                        #[allow(unused_imports)]
+                        use narrative::serde::Serialize;
+                        match self {
+                            StoryConst::NUMBER => {
+                                let NUMBER: u32 = 42;
+                                NUMBER.serialize(serializer)
+                            }
+                        }
                     }
                 }
 
