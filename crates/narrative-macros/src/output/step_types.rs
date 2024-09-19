@@ -100,9 +100,13 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         .iter()
         .map(|arg| {
             let name = &arg.ident;
+            let ty = step
+                .fn_args()
+                .find(|(ident, _)| *ident == name)
+                .map(|(_, ty)| quote!(:#ty));
             let value = &arg.value;
             quote! {
-                let #name = #value;
+                let #name #ty = #value;
             }
         })
         .collect();
@@ -225,7 +229,7 @@ mod tests {
         assert_eq!(
             actual.run.to_string(),
             quote! {
-                let name = "ryo";
+                let name: &str = "ryo";
                 T::my_step1(story, name)
             }
             .to_string()
@@ -233,7 +237,7 @@ mod tests {
         assert_eq!(
             actual.run_async.to_string(),
             quote! {
-                let name = "ryo";
+                let name: &str = "ryo";
                 T::my_step1(story, name).await
             }
             .to_string()
@@ -270,7 +274,7 @@ mod tests {
         assert_eq!(
             actual.run.to_string(),
             quote! {
-                let name = "ryo";
+                let name: &str = "ryo";
                 let unused = "unused";
                 T::my_step1(story, name)
             }
@@ -279,7 +283,7 @@ mod tests {
         assert_eq!(
             actual.run_async.to_string(),
             quote! {
-                let name = "ryo";
+                let name: &str = "ryo";
                 let unused = "unused";
                 T::my_step1(story, name).await
             }

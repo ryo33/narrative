@@ -1,0 +1,9 @@
+[package]
+name = "test-suite"
+edition = "2021"
+publish = false
+
+[dependencies]
+narrative = { path = "../crates/narrative" }
+futures = "0.3"
+serde = { version = "1", features = ["derive"] }

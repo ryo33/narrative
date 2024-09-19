@@ -78,7 +78,6 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
                 #[allow(unused_imports)]
                 use narrative::serde::Serialize;
-                #[allow(clippy::unnecessary_cast)]
                 #serialize_arms
             }
         }

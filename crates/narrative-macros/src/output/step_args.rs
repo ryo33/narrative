@@ -150,8 +150,14 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             );
         (
             quote![Self::#ident => stringify!(#expr),],
-            quote![Self::#ident => format!("{:?}", #expr),],
-            quote![Self::#ident => (#expr as #ty).serialize(serializer),],
+            quote![Self::#ident => {
+                let #ident: #ty = #expr;
+                format!("{:?}", #ident)
+            }],
+            quote![Self::#ident => {
+                let #ident: #ty = #expr;
+                #ident.serialize(serializer)
+            }],
         )
     }).collect::<Vec<_>>();
     let expr_arms = arms.iter().map(|(expr, _, _)| expr).collect::<MatchArms>();
@@ -276,7 +282,10 @@ mod tests {
                 #[inline]
                 pub(super) fn debug_value(&self) -> String {
                     match self {
-                        Self::name => format!("{:?}", "ryo"),
+                        Self::name => {
+                            let name: &str = "ryo";
+                            format!("{:?}", name)
+                        }
                     }
                 }
                 #[inline]
@@ -285,7 +294,10 @@ mod tests {
                     use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
                     match self {
-                        Self::name => ("ryo" as &str).serialize(serializer),
+                        Self::name => {
+                            let name: &str = "ryo";
+                            name.serialize(serializer)
+                        }
                     }
                 }
             }
@@ -334,8 +346,14 @@ mod tests {
                 #[inline]
                 pub(super) fn debug_value(&self) -> String {
                     match self {
-                        Self::id => format!("{:?}", UserId::new()),
-                        Self::name => format!("{:?}", "Alice"),
+                        Self::id => {
+                            let id: UserId = UserId::new();
+                            format!("{:?}", id)
+                        }
+                        Self::name => {
+                            let name: &str = "Alice";
+                            format!("{:?}", name)
+                        }
                     }
                 }
                 #[inline]
@@ -344,8 +362,14 @@ mod tests {
                     use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
                     match self {
-                        Self::id => (UserId::new() as UserId).serialize(serializer),
-                        Self::name => ("Alice" as &str).serialize(serializer),
+                        Self::id => {
+                            let id: UserId = UserId::new();
+                            id.serialize(serializer)
+                        }
+                        Self::name => {
+                            let name: &str = "Alice";
+                            name.serialize(serializer)
+                        }
                     }
                 }
             }
@@ -394,8 +418,14 @@ mod tests {
                 #[inline]
                 pub(super) fn debug_value(&self) -> String {
                     match self {
-                        Self::id => format!("{:?}", UserId::new()),
-                        Self::name => format!("{:?}", "Bob"),
+                        Self::id => {
+                            let id: UserId = UserId::new();
+                            format!("{:?}", id)
+                        }
+                        Self::name => {
+                            let name: &str = "Bob";
+                            format!("{:?}", name)
+                        }
                     }
                 }
                 #[inline]
@@ -404,8 +434,14 @@ mod tests {
                     use narrative::serde::Serialize;
                     #[allow(unnecessary_cast)]
                     match self {
-                        Self::id => (UserId::new() as UserId).serialize(serializer),
-                        Self::name => ("Bob" as &str).serialize(serializer),
+                        Self::id => {
+                            let id: UserId = UserId::new();
+                            id.serialize(serializer)
+                        }
+                        Self::name => {
+                            let name: &str = "Bob";
+                            name.serialize(serializer)
+                        }
                     }
                 }
             }
