@@ -12,14 +12,30 @@ pub(crate) fn generate(item_story: &StoryStep, asyncness: Asyncness) -> TokenStr
         .inputs
         .iter()
         .filter(|input| matches!(input, syn::FnArg::Typed(_)));
-    let output = match asyncness {
-        Asyncness::Sync => quote!(Result<(), Self::Error>),
-        Asyncness::Async => {
-            quote!(impl std::future::Future<Output = Result<(), Self::Error>> + Send)
+
+    // Check if this is a sub-story step
+    if let Some((sub_story_path, async_sub_story_path)) = item_story.sub_story_path() {
+        // Generate different outputs based on asyncness
+        let trait_name = match asyncness {
+            Asyncness::Sync => quote!(#sub_story_path),
+            Asyncness::Async => quote!(#async_sub_story_path),
+        };
+
+        quote! {
+            fn #fn_name(&mut self #(,#inputs_tokens)*) -> Result<impl #trait_name<Error = Self::Error>, Self::Error>
         }
-    };
-    quote! {
-        fn #fn_name(&mut self #(,#inputs_tokens)*) -> #output
+    } else {
+        // Regular step function
+        let output = match asyncness {
+            Asyncness::Sync => quote!(Result<(), Self::Error>),
+            Asyncness::Async => {
+                quote!(impl std::future::Future<Output = Result<(), Self::Error>> + Send)
+            }
+        };
+
+        quote! {
+            fn #fn_name(&mut self #(,#inputs_tokens)*) -> #output
+        }
     }
 }
 
@@ -75,6 +91,45 @@ mod tests {
         let actual = generate(&item_story, Asyncness::Async);
         let expected = quote! {
             fn step1(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_generate_substory_step_fn() {
+        let item_story = syn::parse_quote! {
+            #[step(story: SubStory, "do sub story")]
+            fn step_with_sub();
+        };
+        let actual = generate(&item_story, Asyncness::Sync);
+        let expected = quote! {
+            fn step_with_sub(&mut self) -> Result<impl SubStory<Error = Self::Error>, Self::Error>
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_generate_substory_step_fn_with_inputs() {
+        let item_story = syn::parse_quote! {
+            #[step(story: SubStory, "do sub story")]
+            fn step_with_sub(arg: i32);
+        };
+        let actual = generate(&item_story, Asyncness::Sync);
+        let expected = quote! {
+            fn step_with_sub(&mut self, arg: i32) -> Result<impl SubStory<Error = Self::Error>, Self::Error>
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_generate_substory_step_fn_async() {
+        let item_story = syn::parse_quote! {
+            #[step(story: SubStory, "do sub story")]
+            fn step_with_sub();
+        };
+        let actual = generate(&item_story, Asyncness::Async);
+        let expected = quote! {
+            fn step_with_sub(&mut self) -> Result<impl AsyncSubStory<Error = Self::Error>, Self::Error>
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }

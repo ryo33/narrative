@@ -136,16 +136,38 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         });
     let args: Vec<_> = step.fn_args().map(|(ident, _)| ident).collect();
 
+    let (run, run_async) = if step.has_sub_story() {
+        (
+            quote! {
+                #(#step_args_assignments)*
+                let mut sub_story = T::#step_name(story #(,#args)*)?;
+                sub_story.run_all()?;
+                Ok(())
+            },
+            quote! {
+                #(#step_args_assignments)*
+                let mut sub_story = T::#step_name(story #(,#args)*)?;
+                sub_story.run_all_async().await?;
+                Ok(())
+            },
+        )
+    } else {
+        (
+            quote! {
+                #(#step_args_assignments)*
+                T::#step_name(story #(,#args)*)
+            },
+            quote! {
+                #(#step_args_assignments)*
+                T::#step_name(story #(,#args)*).await
+            },
+        )
+    };
+
     StepSegments {
         ident: &step.inner.sig.ident,
-        run: quote! {
-            #(#step_args_assignments)*
-            T::#step_name(story #(,#args)*)
-        },
-        run_async: quote! {
-            #(#step_args_assignments)*
-            T::#step_name(story #(,#args)*).await
-        },
+        run,
+        run_async,
         step_text: quote! {
             format!(#step_text #(#format_args)*)
         },
@@ -396,6 +418,92 @@ mod tests {
             actual.step_text.to_string(),
             quote! {
                 format!("Step 1: {name:?}", name = "ryo")
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn test_sub_story_step() {
+        let step = parse_quote! {
+            #[step(story: SubStory, "run sub story")]
+            fn run_sub();
+        };
+        let story_syntax = parse_quote! {
+            trait UserStory {
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, &step);
+
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                let mut sub_story = T::run_sub(story)?;
+                sub_story.run_all()?;
+                Ok(())
+            }
+            .to_string()
+        );
+
+        assert_eq!(
+            actual.run_async.to_string(),
+            quote! {
+                let mut sub_story = T::run_sub(story)?;
+                sub_story.run_all_async().await?;
+                Ok(())
+            }
+            .to_string()
+        );
+
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("run sub story")
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn test_sub_story_step_with_args() {
+        let step = parse_quote! {
+            #[step(story: SubStory, "run sub story with {param}", param = 42)]
+            fn run_sub(param: i32);
+        };
+        let story_syntax = parse_quote! {
+            trait UserStory {
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, &step);
+
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                let param: i32 = 42;
+                let mut sub_story = T::run_sub(story, param)?;
+                sub_story.run_all()?;
+                Ok(())
+            }
+            .to_string()
+        );
+
+        assert_eq!(
+            actual.run_async.to_string(),
+            quote! {
+                let param: i32 = 42;
+                let mut sub_story = T::run_sub(story, param)?;
+                sub_story.run_all_async().await?;
+                Ok(())
+            }
+            .to_string()
+        );
+
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("run sub story with {param}", param = 42)
             }
             .to_string()
         );

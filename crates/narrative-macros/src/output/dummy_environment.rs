@@ -8,21 +8,29 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         Asyncness::Sync => input.ident.clone(),
         Asyncness::Async => format_ident!("Async{}", input.ident),
     };
-    let steps = input.steps().map(|step| step_fn::generate(step, asyncness));
-    let body = match asyncness {
-        Asyncness::Sync => quote! {Ok(())},
-        Asyncness::Async => quote! {Box::pin(async { Ok(()) })},
-    };
+    let steps = input.steps().map(|step| {
+        let step_fn = step_fn::generate(step, asyncness);
+        let body = if step.has_sub_story() {
+            quote!(Ok(narrative::environment::DummyEnvironment))
+        } else {
+            match asyncness {
+                Asyncness::Sync => quote!(Ok(())),
+                Asyncness::Async => quote!(Box::pin(async { Ok(()) })),
+            }
+        };
+        quote! {
+            #[inline]
+            #step_fn {
+                #body
+            }
+        }
+    });
+
     quote! {
         #[allow(unused_variables)]
         impl #ident for narrative::environment::DummyEnvironment {
             type Error = std::convert::Infallible;
-            #(
-            #[inline]
-            #steps {
-                #body
-            }
-            )*
+            #(#steps)*
         }
     }
 }
@@ -82,6 +90,50 @@ mod tests {
                 #[inline]
                 fn step2(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send {
                     Box::pin(async { Ok(()) })
+                }
+            }
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_with_sub_story() {
+        let story_syntax = syn::parse_quote! {
+            trait StoryDef {
+                #[step(story: OtherStory, "Sub Step 1")]
+                fn sub_step_1();
+            }
+        };
+        let actual = generate(&story_syntax, Asyncness::Sync);
+        let expected = quote! {
+            #[allow(unused_variables)]
+            impl StoryDef for narrative::environment::DummyEnvironment {
+                type Error = std::convert::Infallible;
+                #[inline]
+                fn sub_step_1(&mut self) -> Result<impl OtherStory<Error = Self::Error>, Self::Error> {
+                    Ok(narrative::environment::DummyEnvironment)
+                }
+            }
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_async_with_sub_story() {
+        let story_syntax = syn::parse_quote! {
+            trait StoryDef {
+                #[step(story: OtherStory, "Sub Step 1")]
+                fn sub_step_1();
+            }
+        };
+        let actual = generate(&story_syntax, Asyncness::Async);
+        let expected = quote! {
+            #[allow(unused_variables)]
+            impl AsyncStoryDef for narrative::environment::DummyEnvironment {
+                type Error = std::convert::Infallible;
+                #[inline]
+                fn sub_step_1(&mut self) -> Result<impl AsyncOtherStory<Error = Self::Error>, Self::Error> {
+                    Ok(narrative::environment::DummyEnvironment)
                 }
             }
         };

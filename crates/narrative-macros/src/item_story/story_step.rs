@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::ToTokens;
+use quote::{format_ident, ToTokens};
 use syn::parse::{Parse, ParseStream};
 
 use crate::step_attr_syntax::StepAttr;
@@ -78,6 +78,21 @@ impl StoryStep {
             .map(ToOwned::to_owned)
             .collect()
     }
+
+    pub(crate) fn has_sub_story(&self) -> bool {
+        self.attr.story_type.is_some()
+    }
+
+    /// Gets the path to the sub-story type if this is a sub-story step
+    pub(crate) fn sub_story_path(&self) -> Option<(&syn::Path, syn::Path)> {
+        self.attr.story_type.as_ref().map(|st| {
+            let path = &st.path;
+            let mut cloned = path.clone();
+            cloned.segments.last_mut().unwrap().ident =
+                format_ident!("Async{}", cloned.segments.last().unwrap().ident);
+            (path, cloned)
+        })
+    }
 }
 
 #[cfg(test)]
@@ -94,6 +109,23 @@ mod tests {
         let actual = syn::parse2::<StoryStep>(input).unwrap();
         assert_eq!(actual.attr.text.value(), "Step 1".to_string());
         assert_eq!(actual.inner.sig.ident.to_string(), "step1".to_string());
+        assert!(actual.sub_story_path().is_none());
+    }
+
+    #[test]
+    fn parse_sub_story_step() {
+        let input = quote! {
+            #[step(story: SubStory, "do sub story")]
+            fn step_with_sub();
+        };
+        let actual = syn::parse2::<StoryStep>(input).unwrap();
+        assert_eq!(actual.attr.text.value(), "do sub story".to_string());
+        assert_eq!(
+            actual.inner.sig.ident.to_string(),
+            "step_with_sub".to_string()
+        );
+        assert!(actual.sub_story_path().unwrap().0.is_ident("SubStory"));
+        assert!(actual.sub_story_path().unwrap().1.is_ident("AsyncSubStory"));
     }
 
     #[test]
@@ -109,6 +141,23 @@ mod tests {
         let expected = quote! {
             #[step("Step 1")]
             fn step1();
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn to_tokens_sub_story() {
+        let input = quote! {
+            #[step(story: SubStory, "do sub story")]
+            fn step_with_sub();
+        };
+        let actual = syn::parse2::<StoryStep>(input).unwrap();
+        let actual = quote! {
+            #actual
+        };
+        let expected = quote! {
+            #[step(story: SubStory, "do sub story")]
+            fn step_with_sub();
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }

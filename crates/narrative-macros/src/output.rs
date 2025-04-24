@@ -58,6 +58,8 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     quote! {
         #[allow(non_snake_case)]
         mod #mod_ident {
+            #[allow(unused_imports)]
+            use super::*;
             #base_trait
             #async_base_trait
             #story_trait

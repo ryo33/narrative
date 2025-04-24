@@ -4,3 +4,4 @@ mod consts;
 mod empty_story;
 mod hello_world;
 mod my_first_story;
+mod sub_story;

@@ -4,6 +4,7 @@ use syn::parse::Parse;
 
 mod kw {
     syn::custom_keyword!(step);
+    syn::custom_keyword!(story);
 }
 
 pub struct StepAttr {
@@ -11,8 +12,16 @@ pub struct StepAttr {
     pub bracket: syn::token::Bracket,
     pub step: kw::step,
     pub paren: syn::token::Paren,
+    pub story_type: Option<StoryType>,
     pub text: syn::LitStr,
     pub args: Vec<StepAttrArgs>,
+}
+
+pub struct StoryType {
+    pub story_kw: kw::story,
+    pub colon_token: syn::Token![:],
+    pub path: syn::Path,
+    pub comma_token: syn::Token![,],
 }
 
 pub struct StepAttrArgs {
@@ -30,16 +39,31 @@ impl Parse for StepAttr {
         let step = attr_content.parse::<kw::step>()?;
         let step_content;
         let paren = syn::parenthesized!(step_content in attr_content);
+
+        // Try to parse a story type if available
+        let story_type = if step_content.peek(kw::story) {
+            Some(StoryType {
+                story_kw: step_content.parse()?,
+                colon_token: step_content.parse()?,
+                path: step_content.parse()?,
+                comma_token: step_content.parse()?,
+            })
+        } else {
+            None
+        };
+
         let text = step_content.parse()?;
         let mut args = Vec::new();
         while !step_content.is_empty() {
             args.push(step_content.parse()?);
         }
+
         Ok(Self {
             pound_symbol,
             bracket,
             step,
             paren,
+            story_type,
             text,
             args,
         })
@@ -67,12 +91,24 @@ impl ToTokens for StepAttr {
         self.bracket.surround(tokens, |tokens| {
             self.step.to_tokens(tokens);
             self.paren.surround(tokens, |tokens| {
+                if let Some(story_type) = &self.story_type {
+                    story_type.to_tokens(tokens);
+                }
                 self.text.to_tokens(tokens);
                 for arg in &self.args {
                     arg.to_tokens(tokens);
                 }
             });
         });
+    }
+}
+
+impl ToTokens for StoryType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.story_kw.to_tokens(tokens);
+        self.colon_token.to_tokens(tokens);
+        self.path.to_tokens(tokens);
+        self.comma_token.to_tokens(tokens);
     }
 }
 
@@ -97,6 +133,7 @@ mod tests {
         };
         assert_eq!(input.text.value(), "Hello, world!".to_string());
         assert_eq!(input.args.len(), 0);
+        assert!(input.story_type.is_none());
     }
 
     #[test]
@@ -130,6 +167,31 @@ mod tests {
     }
 
     #[test]
+    fn test_step_attr_with_story() {
+        let input: StepAttr = syn::parse_quote! {
+            #[step(story: SubStory, "do sub story")]
+        };
+        assert_eq!(input.text.value(), "do sub story".to_string());
+        assert_eq!(input.args.len(), 0);
+        assert!(input.story_type.is_some());
+        let story_type = input.story_type.as_ref().unwrap();
+        assert!(story_type.path.is_ident("SubStory"));
+    }
+
+    #[test]
+    fn test_step_attr_with_story_and_args() {
+        let input: StepAttr = syn::parse_quote! {
+            #[step(story: SubStory, "do sub story with args", arg = 2)]
+        };
+        assert_eq!(input.text.value(), "do sub story with args".to_string());
+        assert_eq!(input.args.len(), 1);
+        assert_eq!(input.args[0].ident, "arg".to_string());
+        assert!(input.story_type.is_some());
+        let story_type = input.story_type.as_ref().unwrap();
+        assert!(story_type.path.is_ident("SubStory"));
+    }
+
+    #[test]
     fn test_to_tokens() {
         let input: StepAttr = syn::parse_quote! {
             #[step("Hello, world!", arg1 = 1, arg2 = "2", arg3 = UserId::new_v4())]
@@ -139,6 +201,20 @@ mod tests {
         };
         let expected = quote! {
             #[step("Hello, world!", arg1 = 1, arg2 = "2", arg3 = UserId::new_v4())]
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_to_tokens_with_story() {
+        let input: StepAttr = syn::parse_quote! {
+            #[step(story: SubStory, "do sub story", arg = 2)]
+        };
+        let actual = quote! {
+            #input
+        };
+        let expected = quote! {
+            #[step(story: SubStory, "do sub story", arg = 2)]
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }
