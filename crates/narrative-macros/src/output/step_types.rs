@@ -26,10 +26,11 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         .iter()
         .map(|StepSegments { ident, idents, .. }| quote!(Self::#ident => { #idents }))
         .collect();
-    let step_args: MatchArms = steps
+    let step_args = steps
         .iter()
         .map(|StepSegments { ident, args, .. }| quote!(Self::#ident => { #args }))
-        .collect();
+        .collect::<MatchArms>()
+        .cast_as(quote!(std::iter::Empty<StepArg>));
     let step_runs: MatchArms = steps
         .iter()
         .map(|StepSegments { ident, run, .. }| quote!(Self::#ident => { #run }))
@@ -42,6 +43,23 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
              }| quote!(Self::#ident => { #run_async }),
         )
         .collect();
+    let step_stories = steps
+        .iter()
+        .map(
+            |StepSegments {
+                 ident,
+                 story_context,
+                 ..
+             }| {
+                if let Some(story_context) = story_context {
+                    quote!(Self::#ident => { Some(#story_context) })
+                } else {
+                    quote!(Self::#ident => { None as Option<StoryContext> })
+                }
+            },
+        )
+        .collect::<MatchArms>()
+        .cast_as(quote!(Option<StoryContext>));
 
     quote! {
         #[allow(non_camel_case_types)]
@@ -49,8 +67,6 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             #(#step_names),*
         }
         impl narrative::step::Step for Step {
-            type Arg = StepArg;
-            type ArgIter = std::slice::Iter<'static, Self::Arg>;
             #[inline]
             fn step_text(&self) -> String {
                 #step_texts
@@ -60,8 +76,12 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 #step_idents
             }
             #[inline]
-            fn args(&self) -> Self::ArgIter {
+            fn args(&self) -> impl Iterator<Item = impl narrative::step::StepArg + 'static> + 'static {
                 #step_args
+            }
+            #[inline]
+            fn story(&self) -> Option<impl narrative::story::StoryContext + 'static> {
+                #step_stories
             }
         }
 
@@ -88,6 +108,7 @@ pub struct StepSegments<'a> {
     step_text: TokenStream,
     args: TokenStream,
     idents: TokenStream,
+    story_context: Option<syn::Path>,
 }
 
 fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<'a> {
@@ -164,6 +185,8 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         )
     };
 
+    let story_context = step.sub_story_path().map(|path| path.context_path());
+    let args_len = args.len();
     StepSegments {
         ident: &step.inner.sig.ident,
         run,
@@ -175,8 +198,9 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
             stringify!(#step_name)
         },
         args: quote! {
-            [#(StepArg(StepArgInner::#step_name(args::#step_name::#args))),*].iter()
+            ([#(StepArg(StepArgInner::#step_name(args::#step_name::#args))),*] as [StepArg; #args_len]).iter().copied()
         },
+        story_context,
     }
 }
 
@@ -230,7 +254,7 @@ mod tests {
         assert_eq!(
             actual.args.to_string(),
             quote! {
-                [].iter()
+                ([] as [StepArg; 0usize]).iter().copied()
             }
             .to_string()
         );
@@ -274,7 +298,7 @@ mod tests {
         assert_eq!(
             actual.args.to_string(),
             quote! {
-                [StepArg(StepArgInner::my_step1(args::my_step1::name))].iter()
+                ([StepArg(StepArgInner::my_step1(args::my_step1::name))] as [StepArg; 1usize]).iter().copied()
             }
             .to_string()
         );
@@ -321,7 +345,7 @@ mod tests {
         assert_eq!(
             actual.args.to_string(),
             quote! {
-                [StepArg(StepArgInner::my_step1(args::my_step1::name))].iter()
+                ([StepArg(StepArgInner::my_step1(args::my_step1::name))] as [StepArg; 1usize]).iter().copied()
             }
             .to_string()
         );

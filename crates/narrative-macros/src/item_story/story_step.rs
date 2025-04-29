@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
-use quote::{format_ident, ToTokens};
+use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 
-use crate::step_attr_syntax::StepAttr;
+use crate::step_attr_syntax::{StepAttr, StoryType};
 
 pub struct StoryStep {
     pub attr: StepAttr,
@@ -84,14 +84,8 @@ impl StoryStep {
     }
 
     /// Gets the path to the sub-story type if this is a sub-story step
-    pub(crate) fn sub_story_path(&self) -> Option<(&syn::Path, syn::Path)> {
-        self.attr.story_type.as_ref().map(|st| {
-            let path = &st.path;
-            let mut cloned = path.clone();
-            cloned.segments.last_mut().unwrap().ident =
-                format_ident!("Async{}", cloned.segments.last().unwrap().ident);
-            (path, cloned)
-        })
+    pub(crate) fn sub_story_path(&self) -> Option<&StoryType> {
+        self.attr.story_type.as_ref()
     }
 }
 
@@ -124,8 +118,7 @@ mod tests {
             actual.inner.sig.ident.to_string(),
             "step_with_sub".to_string()
         );
-        assert!(actual.sub_story_path().unwrap().0.is_ident("SubStory"));
-        assert!(actual.sub_story_path().unwrap().1.is_ident("AsyncSubStory"));
+        assert!(actual.sub_story_path().unwrap().path.is_ident("SubStory"));
     }
 
     #[test]

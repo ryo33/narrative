@@ -93,30 +93,62 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     }
 }
 
-struct MatchArms(Vec<TokenStream>);
+#[derive(Default)]
+struct MatchArms {
+    arms: Vec<TokenStream>,
+    cast_as: Option<TokenStream>,
+    match_target: Option<TokenStream>,
+}
 
+impl MatchArms {
+    pub fn cast_as(mut self, cast_as: TokenStream) -> Self {
+        self.cast_as = Some(cast_as);
+        self
+    }
+
+    pub fn match_target(mut self, match_target: TokenStream) -> Self {
+        self.match_target = Some(match_target);
+        self
+    }
+}
 impl FromIterator<TokenStream> for MatchArms {
     fn from_iter<T: IntoIterator<Item = TokenStream>>(iter: T) -> Self {
-        Self(iter.into_iter().collect())
+        Self {
+            arms: iter.into_iter().collect(),
+            ..Default::default()
+        }
     }
 }
 
 impl<'a> FromIterator<&'a TokenStream> for MatchArms {
     fn from_iter<T: IntoIterator<Item = &'a TokenStream>>(iter: T) -> Self {
-        Self(iter.into_iter().cloned().collect())
+        Self {
+            arms: iter.into_iter().cloned().collect(),
+            ..Default::default()
+        }
     }
 }
 
 impl ToTokens for MatchArms {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let extend = if self.0.is_empty() {
-            quote! {
-                unreachable!()
+        let extend = if self.arms.is_empty() {
+            if let Some(cast_as) = &self.cast_as {
+                quote! {
+                    #[allow(unreachable_code)]
+                    {
+                        unreachable!() as #cast_as
+                    }
+                }
+            } else {
+                quote! {
+                    unreachable!()
+                }
             }
         } else {
-            let arms = &self.0;
+            let arms = &self.arms;
+            let match_target = self.match_target.clone().unwrap_or_else(|| quote!(self));
             quote! {
-                match self {
+                match #match_target {
                     #(#arms)*
                 }
             }

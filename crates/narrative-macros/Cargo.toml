@@ -16,7 +16,12 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 # extra-traits for PartialEq of Pat
-syn = { version = "2", features = ["full", "parsing", "extra-traits"] }
+syn = { version = "2", features = [
+	"full",
+	"parsing",
+	"extra-traits",
+	"visit-mut",
+] }
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

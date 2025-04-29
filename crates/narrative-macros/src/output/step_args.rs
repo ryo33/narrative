@@ -2,8 +2,9 @@
 // To avoid name conflict, we use dedicated module for args.
 // enum dispatched by step name and step arg name.
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
+use syn::visit_mut::VisitMut;
 
 use crate::{
     item_story::{ItemStory, StoryStep},
@@ -16,6 +17,19 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let arg_impls = story.steps().map(|step| generate_arg_impl(story, step));
     let serde_impls = story.steps().map(generate_serialize_impl);
     let debug_impls = story.steps().map(generate_debug_impl);
+    let arg_values = story.steps().map(generate_arg_values);
+
+    let serialize_arms = step_names
+        .iter()
+        .map(|name| {
+            quote! {
+                StepArgInner::#name(arg) => arg.serialize_value(),
+            }
+        })
+        .collect::<MatchArms>()
+        .cast_as(quote!(ArgValue))
+        .match_target(quote!(self.0));
+
     quote! {
         #[derive(Clone, Copy, narrative::serde::Serialize)]
         #[serde(transparent, crate = "narrative::serde")]
@@ -26,6 +40,13 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         #[serde(untagged, crate = "narrative::serde")]
         enum StepArgInner {
             #(#step_names(args::#step_names)),*
+        }
+
+        #[allow(non_camel_case_types)]
+        #[derive(narrative::serde::Serialize)]
+        #[serde(untagged, crate = "narrative::serde")]
+        enum ArgValue {
+            #(#step_names(arg_values::#step_names)),*
         }
 
         impl narrative::step::StepArg for StepArg {
@@ -54,10 +75,8 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 }
             }
             #[inline]
-            fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                match self.0 {
-                    #(StepArgInner::#step_names(arg) => arg.serialize_value(serializer)),*
-                }
+            fn serialize_value(&self) -> impl serde::Serialize + 'static {
+                #serialize_arms
             }
         }
 
@@ -70,7 +89,12 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             }
         }
 
+        mod arg_values {
+            #(#arg_values)*
+        }
         mod args {
+            use super::*;
+
             #(#step_enums)*
             #(#arg_impls)*
             #(#serde_impls)*
@@ -122,6 +146,36 @@ fn generate_serialize_impl(step: &StoryStep) -> TokenStream {
     }
 }
 
+fn generate_arg_values(step: &StoryStep) -> TokenStream {
+    let step_ident = &step.inner.sig.ident;
+    let variants = step.fn_args().map(|(ident, ty)| {
+        struct MakeStaticWalker;
+
+        impl VisitMut for MakeStaticWalker {
+            fn visit_type_reference_mut(&mut self, i: &mut syn::TypeReference) {
+                i.lifetime = Some(syn::Lifetime::new("'static", Span::mixed_site()));
+                self.visit_type_mut(&mut i.elem);
+            }
+        }
+
+        let mut walker = MakeStaticWalker;
+        let mut ty = ty.clone();
+        walker.visit_type_mut(&mut ty);
+
+        quote! {
+            #ident(#ty)
+        }
+    });
+    quote! {
+        #[allow(non_camel_case_types)]
+        #[derive(narrative::serde::Serialize)]
+        #[serde(untagged, crate = "narrative::serde")]
+        pub(super) enum #step_ident {
+            #(#variants,)*
+        }
+    }
+}
+
 fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
     let step_ident = &step.inner.sig.ident;
     let name_arms = step
@@ -156,7 +210,7 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             }],
             quote![Self::#ident => {
                 let #ident: #ty = #expr;
-                #ident.serialize(serializer)
+                ArgValue::#step_ident(arg_values::#step_ident::#ident(#ident))
             }],
         )
     }).collect::<Vec<_>>();
@@ -168,7 +222,9 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
     let serialize_arms = arms
         .iter()
         .map(|(_, _, serialize)| serialize)
-        .collect::<MatchArms>();
+        .collect::<MatchArms>()
+        .cast_as(quote!(ArgValue));
+
     quote! {
         impl #step_ident {
             #[inline]
@@ -188,10 +244,7 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
                 #debug_arms
             }
             #[inline]
-            pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                #[allow(unused_imports)]
-                use narrative::serde::Serialize;
-                #[allow(unnecessary_cast)]
+            pub(super) fn serialize_value(&self) -> ArgValue {
                 #serialize_arms
             }
         }
@@ -203,11 +256,11 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    use syn::parse2;
+    use syn::parse_quote;
 
     #[test]
     fn simple() {
-        let step = quote! {
+        let step: StoryStep = parse_quote! {
             #[step("Step 1")]
             fn my_step1();
         };
@@ -216,7 +269,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
+        let actual = generate_arg_impl(&story_syntax, &step);
         let expected = quote! {
             impl my_step1 {
                 #[inline]
@@ -236,11 +289,11 @@ mod tests {
                     unreachable!()
                 }
                 #[inline]
-                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                    #[allow(unused_imports)]
-                    use narrative::serde::Serialize;
-                    #[allow(unnecessary_cast)]
-                    unreachable!()
+                pub(super) fn serialize_value(&self) -> ArgValue {
+                    #[allow(unreachable_code)]
+                    {
+                        unreachable!() as ArgValue
+                    }
                 }
             }
         };
@@ -249,7 +302,7 @@ mod tests {
 
     #[test]
     fn use_step_attr_args() {
-        let step = quote! {
+        let step: StoryStep = parse_quote! {
             #[step("Step 1: {name}", name = "ryo")]
             fn my_step1(name: &str);
         };
@@ -258,7 +311,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
+        let actual = generate_arg_impl(&story_syntax, &step);
         let expected = quote! {
             impl my_step1 {
                 #[inline]
@@ -289,14 +342,11 @@ mod tests {
                     }
                 }
                 #[inline]
-                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                    #[allow(unused_imports)]
-                    use narrative::serde::Serialize;
-                    #[allow(unnecessary_cast)]
+                pub(super) fn serialize_value(&self) -> ArgValue {
                     match self {
                         Self::name => {
                             let name: &str = "ryo";
-                            name.serialize(serializer)
+                            ArgValue::my_step1(arg_values::my_step1::name(name))
                         }
                     }
                 }
@@ -308,7 +358,7 @@ mod tests {
     #[test]
     /// Find global assignments
     fn test_global_assignments() {
-        let step = quote! {
+        let step: StoryStep = parse_quote! {
             #[step("Step 1")]
             fn my_step1(id: UserId, name: &str);
         };
@@ -319,7 +369,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
+        let actual = generate_arg_impl(&story_syntax, &step);
         let expected = quote! {
             impl my_step1 {
                 #[inline]
@@ -357,18 +407,15 @@ mod tests {
                     }
                 }
                 #[inline]
-                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                    #[allow(unused_imports)]
-                    use narrative::serde::Serialize;
-                    #[allow(unnecessary_cast)]
+                pub(super) fn serialize_value(&self) -> ArgValue {
                     match self {
                         Self::id => {
                             let id: UserId = UserId::new();
-                            id.serialize(serializer)
+                            ArgValue::my_step1(arg_values::my_step1::id(id))
                         }
                         Self::name => {
                             let name: &str = "Alice";
-                            name.serialize(serializer)
+                            ArgValue::my_step1(arg_values::my_step1::name(name))
                         }
                     }
                 }
@@ -380,7 +427,7 @@ mod tests {
     #[test]
     /// Find local assignments first
     fn test_local_assignments() {
-        let step = quote! {
+        let step: StoryStep = parse_quote! {
             #[step("Step 1", name = "Bob")]
             fn my_step1(id: UserId, name: &str);
         };
@@ -391,7 +438,7 @@ mod tests {
                 #step
             }
         };
-        let actual = generate_arg_impl(&story_syntax, &parse2(step).unwrap());
+        let actual = generate_arg_impl(&story_syntax, &step);
         let expected = quote! {
             impl my_step1 {
                 #[inline]
@@ -429,21 +476,37 @@ mod tests {
                     }
                 }
                 #[inline]
-                pub(super) fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                    #[allow(unused_imports)]
-                    use narrative::serde::Serialize;
-                    #[allow(unnecessary_cast)]
+                pub(super) fn serialize_value(&self) -> ArgValue {
                     match self {
                         Self::id => {
                             let id: UserId = UserId::new();
-                            id.serialize(serializer)
+                            ArgValue::my_step1(arg_values::my_step1::id(id))
                         }
                         Self::name => {
                             let name: &str = "Bob";
-                            name.serialize(serializer)
+                            ArgValue::my_step1(arg_values::my_step1::name(name))
                         }
                     }
                 }
+            }
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_generate_arg_values() {
+        let step: StoryStep = parse_quote! {
+            #[step("Step 1")]
+            fn my_step1(id: UserId, name: &str);
+        };
+        let actual = generate_arg_values(&step);
+        let expected = quote! {
+            #[allow(non_camel_case_types)]
+            #[derive(narrative::serde::Serialize)]
+            #[serde(untagged, crate = "narrative::serde")]
+            pub(super)enum my_step1 {
+                id(UserId),
+                name(&'static str),
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());

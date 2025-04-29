@@ -23,8 +23,8 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         Asyncness::Async => quote! {async fn run_all_async(&mut self)},
     };
     let step_run = match asyncness {
-        Asyncness::Sync => quote! {step.run(self)},
-        Asyncness::Async => quote! {step.run_async(self).await},
+        Asyncness::Sync => quote! {__narrative_story_ext_step.run(self)},
+        Asyncness::Async => quote! {__narrative_story_ext_step.run_async(self).await},
     };
     let use_run = match asyncness {
         Asyncness::Sync => quote! {use narrative::step::Run;},
@@ -42,7 +42,7 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
             #sig -> Result<(), Self::Error> {
                 use narrative::step::Step;
                 #use_run
-                for step in narrative::story::StoryContext::steps(&StoryContext::default()) {
+                for __narrative_story_ext_step in narrative::story::StoryContext::steps(&StoryContext::default()) {
                     #step_run?;
                 }
                 Ok(())
@@ -74,8 +74,8 @@ mod tests {
                 fn run_all(&mut self) -> Result<(), Self::Error> {
                     use narrative::step::Step;
                     use narrative::step::Run;
-                    for step in narrative::story::StoryContext::steps(&StoryContext::default()) {
-                        step.run(self)?;
+                    for __narrative_story_ext_step in narrative::story::StoryContext::steps(&StoryContext::default()) {
+                        __narrative_story_ext_step.run(self)?;
                     }
                     Ok(())
                 }
@@ -102,8 +102,8 @@ mod tests {
                 async fn run_all_async(&mut self) -> Result<(), Self::Error> {
                     use narrative::step::Step;
                     use narrative::step::RunAsync;
-                    for step in narrative::story::StoryContext::steps(&StoryContext::default()) {
-                        step.run_async(self).await?;
+                    for __narrative_story_ext_step in narrative::story::StoryContext::steps(&StoryContext::default()) {
+                        __narrative_story_ext_step.run_async(self).await?;
                     }
                     Ok(())
                 }

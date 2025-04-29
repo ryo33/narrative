@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::ToTokens;
+use quote::{format_ident, ToTokens};
 use syn::parse::Parse;
 
 mod kw {
@@ -29,6 +29,28 @@ pub struct StepAttrArgs {
     pub ident: syn::Ident,
     pub equal_token: syn::Token![=],
     pub value: syn::Expr,
+}
+
+impl StoryType {
+    pub fn path(&self) -> &syn::Path {
+        &self.path
+    }
+
+    pub fn async_path(&self) -> syn::Path {
+        let mut cloned = self.path.clone();
+        if let Some(seg) = cloned.segments.last_mut() {
+            seg.ident = format_ident!("Async{}", seg.ident);
+        }
+        cloned
+    }
+
+    pub fn context_path(&self) -> syn::Path {
+        let mut cloned = self.path.clone();
+        if let Some(seg) = cloned.segments.last_mut() {
+            seg.ident = format_ident!("{}Context", seg.ident);
+        }
+        cloned
+    }
 }
 
 impl Parse for StepAttr {

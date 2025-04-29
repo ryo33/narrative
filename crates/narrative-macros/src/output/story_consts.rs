@@ -9,6 +9,11 @@ use crate::{item_story::ItemStory, output::MatchArms};
 
 pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let const_names = story.consts().map(|item| &item.raw.ident);
+    let const_variants = story.consts().map(|item| {
+        let ident = &item.raw.ident;
+        let ty = &item.raw.ty;
+        quote!(#ident(#ty))
+    });
     let name_arms = story
         .consts()
         .map(|item| {
@@ -42,7 +47,7 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 }],
                 quote![StoryConst::#ident => {
                     let #ident: #ty = #expr;
-                    #ident.serialize(serializer)
+                    ConstValue::#ident(#ident)
                 }],
             )
         })
@@ -55,12 +60,20 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     let serialize_arms = arms
         .iter()
         .map(|(_, _, serialize)| serialize)
-        .collect::<MatchArms>();
+        .collect::<MatchArms>()
+        .cast_as(quote!(&str));
+
     quote! {
         #[derive(Clone, Copy)]
         #[allow(non_camel_case_types)]
         pub enum StoryConst {
             #(#const_names),*
+        }
+
+        #[derive(Clone, narrative::serde::Serialize)]
+        #[allow(non_camel_case_types)]
+        enum ConstValue {
+            #(#const_variants),*
         }
 
         impl narrative::story::StoryConst for StoryConst {
@@ -81,9 +94,7 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 #debug_arms
             }
             #[inline]
-            fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                #[allow(unused_imports)]
-                use narrative::serde::Serialize;
+            fn serialize_value(&self) -> impl serde::Serialize + 'static {
                 #serialize_arms
             }
         }
@@ -136,6 +147,10 @@ mod tests {
                 #[allow(non_camel_case_types)]
                 pub enum StoryConst {}
 
+                #[derive(Clone, narrative::serde::Serialize)]
+                #[allow(non_camel_case_types)]
+                enum ConstValue {}
+
                 impl narrative::story::StoryConst for StoryConst {
                     #[inline]
                     fn name(&self) -> &'static str {
@@ -154,10 +169,11 @@ mod tests {
                         unreachable!()
                     }
                     #[inline]
-                    fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                        #[allow(unused_imports)]
-                        use narrative::serde::Serialize;
-                        unreachable!()
+                    fn serialize_value(&self) -> impl serde::Serialize + 'static {
+                        #[allow(unreachable_code)]
+                        {
+                            unreachable!() as &str
+                        }
                     }
                 }
 
@@ -207,6 +223,12 @@ mod tests {
                     NUMBER
                 }
 
+                #[derive(Clone, narrative::serde::Serialize)]
+                #[allow(non_camel_case_types)]
+                enum ConstValue {
+                    NUMBER(u32)
+                }
+
                 impl narrative::story::StoryConst for StoryConst {
                     #[inline]
                     fn name(&self) -> &'static str {
@@ -236,13 +258,11 @@ mod tests {
                         }
                     }
                     #[inline]
-                    fn serialize_value<T: narrative::serde::Serializer>(&self, serializer: T) -> Result<T::Ok, T::Error> {
-                        #[allow(unused_imports)]
-                        use narrative::serde::Serialize;
+                    fn serialize_value(&self) -> impl serde::Serialize + 'static {
                         match self {
                             StoryConst::NUMBER => {
                                 let NUMBER: u32 = 42;
-                                NUMBER.serialize(serializer)
+                                ConstValue::NUMBER(NUMBER)
                             }
                         }
                     }

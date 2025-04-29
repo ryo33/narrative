@@ -17,6 +17,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", optional = true }
 chrono = { version = "0.4", optional = true, features = ["serde"] }
 uuid = { version = "1", optional = true, features = ["serde"] }
+erased-serde = { version = "0.4" }
 
 [features]
 serde_json = ["dep:serde_json"]

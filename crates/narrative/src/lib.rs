@@ -4,7 +4,7 @@ pub mod step;
 pub mod story;
 
 pub use independent_type::IndependentType;
-pub use narrative_macros::story;
+pub use narrative_macros::*;
 pub mod serde {
     pub use serde::*;
 }

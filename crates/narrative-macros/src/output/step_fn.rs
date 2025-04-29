@@ -14,11 +14,13 @@ pub(crate) fn generate(item_story: &StoryStep, asyncness: Asyncness) -> TokenStr
         .filter(|input| matches!(input, syn::FnArg::Typed(_)));
 
     // Check if this is a sub-story step
-    if let Some((sub_story_path, async_sub_story_path)) = item_story.sub_story_path() {
+    if let Some(sub_story_path) = item_story.sub_story_path() {
+        let path = sub_story_path.path();
+        let async_path = sub_story_path.async_path();
         // Generate different outputs based on asyncness
         let trait_name = match asyncness {
-            Asyncness::Sync => quote!(#sub_story_path),
-            Asyncness::Async => quote!(#async_sub_story_path),
+            Asyncness::Sync => quote!(#path),
+            Asyncness::Async => quote!(#async_path),
         };
 
         quote! {

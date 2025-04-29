@@ -2,7 +2,7 @@ use syn::parse::{Parse, ParseStream};
 
 use super::{story_const::StoryConst, StoryStep};
 
-#[expect(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant)]
 pub enum StoryItem {
     Step(StoryStep),
     Trait(syn::ItemTrait),
