@@ -20,6 +20,7 @@ syn = { version = "2", features = [
 	"full",
 	"parsing",
 	"extra-traits",
+	"visit",
 	"visit-mut",
 ] }
 

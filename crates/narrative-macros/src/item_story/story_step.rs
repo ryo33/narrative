@@ -2,7 +2,12 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 
-use crate::step_attr_syntax::{StepAttr, StoryType};
+use crate::{
+    collect_format_args,
+    step_attr_syntax::{StepAttr, StoryType},
+};
+
+use super::{ConstBinding, ItemStory};
 
 pub struct StoryStep {
     pub attr: StepAttr,
@@ -58,25 +63,7 @@ impl StoryStep {
     }
 
     pub(crate) fn extract_format_args(&self) -> Vec<String> {
-        self.attr
-            .text
-            .value()
-            // remove escaped braces
-            .split("{{")
-            .flat_map(|part| part.split("}}"))
-            // iter parts that start with '{' by skipping the first split
-            .flat_map(|part| part.split('{').skip(1))
-            // take the part before the first '}'
-            .filter_map(|part| part.split_once('}').map(|(head, _)| head))
-            // remove parts after the first ':'
-            .map(|format| {
-                format
-                    .split_once(':')
-                    .map(|(head, _)| head)
-                    .unwrap_or(format)
-            })
-            .map(ToOwned::to_owned)
-            .collect()
+        collect_format_args(&self.attr.text)
     }
 
     pub(crate) fn has_sub_story(&self) -> bool {
@@ -86,6 +73,19 @@ impl StoryStep {
     /// Gets the path to the sub-story type if this is a sub-story step
     pub(crate) fn sub_story_path(&self) -> Option<&StoryType> {
         self.attr.story_type.as_ref()
+    }
+
+    pub(crate) fn generate_const_bindings<'a>(
+        &'a self,
+        story: &'a ItemStory,
+    ) -> Vec<ConstBinding<'a>> {
+        let mut vec: Vec<_> = self
+            .attr_args()
+            .flat_map(|(_, expr)| story.generate_const_bindings(expr))
+            .collect();
+        vec.sort_by_key(|binding| binding.ident);
+        vec.dedup_by_key(|binding| binding.ident);
+        vec
     }
 }
 

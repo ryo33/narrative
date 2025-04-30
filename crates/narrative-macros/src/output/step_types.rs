@@ -131,6 +131,7 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
             }
         })
         .collect();
+    let const_bindings = step.generate_const_bindings(story);
     let extracted_format_args = step.extract_format_args();
     let format_args_from_attr = step.attr.args.iter().filter_map(|arg| {
         if extracted_format_args.contains(&arg.ident.to_string()) {
@@ -160,12 +161,14 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
     let (run, run_async) = if step.has_sub_story() {
         (
             quote! {
+                #(#const_bindings)*
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
                 sub_story.run_all()?;
                 Ok(())
             },
             quote! {
+                #(#const_bindings)*
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
                 sub_story.run_all_async().await?;
@@ -175,10 +178,12 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
     } else {
         (
             quote! {
+                #(#const_bindings)*
                 #(#step_args_assignments)*
                 T::#step_name(story #(,#args)*)
             },
             quote! {
+                #(#const_bindings)*
                 #(#step_args_assignments)*
                 T::#step_name(story #(,#args)*).await
             },
@@ -528,6 +533,44 @@ mod tests {
             actual.step_text.to_string(),
             quote! {
                 format!("run sub story with {param}", param = 42)
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn test_const_binding_in_arg_assignment() {
+        // Step uses a story constant (MY_CONST) inside an attribute argument expression.
+        let step = parse_quote! {
+            #[step("Step 1: {param}", param = MY_CONST * 2)]
+            fn my_step(param: i32);
+        };
+        let story_syntax = parse_quote! {
+            trait MyStory {
+                const MY_CONST: i32 = 10;
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, &step);
+
+        // run (sync)
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                let MY_CONST: i32 = 10;
+                let param: i32 = MY_CONST * 2;
+                T::my_step(story, param)
+            }
+            .to_string()
+        );
+
+        // run_async
+        assert_eq!(
+            actual.run_async.to_string(),
+            quote! {
+                let MY_CONST: i32 = 10;
+                let param: i32 = MY_CONST * 2;
+                T::my_step(story, param).await
             }
             .to_string()
         );

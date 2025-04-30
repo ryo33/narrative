@@ -43,3 +43,24 @@ impl quote::ToTokens for Asyncness {
         }
     }
 }
+
+pub(crate) fn collect_format_args(lit_str: &syn::LitStr) -> Vec<String> {
+    lit_str
+        .value()
+        // remove escaped braces
+        .split("{{")
+        .flat_map(|part| part.split("}}"))
+        // iter parts that start with '{' by skipping the first split
+        .flat_map(|part| part.split('{').skip(1))
+        // take the part before the first '}'
+        .filter_map(|part| part.split_once('}').map(|(head, _)| head))
+        // remove parts after the first ':'
+        .map(|format| {
+            format
+                .split_once(':')
+                .map(|(head, _)| head)
+                .unwrap_or(format)
+        })
+        .map(ToOwned::to_owned)
+        .collect()
+}

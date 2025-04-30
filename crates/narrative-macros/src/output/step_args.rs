@@ -3,7 +3,7 @@
 // enum dispatched by step name and step arg name.
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned};
 use syn::visit_mut::VisitMut;
 
 use crate::{
@@ -178,6 +178,7 @@ fn generate_arg_values(step: &StoryStep) -> TokenStream {
 
 fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
     let step_ident = &step.inner.sig.ident;
+
     let name_arms = step
         .fn_args()
         .map(|(ident, _)| {
@@ -194,26 +195,35 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
             }
         })
         .collect::<MatchArms>();
-    let arms = step.fn_args().map(|(ident, ty)| {
-        let expr = step
+    let result = step.fn_args().map(|(ident, ty)| {
+        let Some(expr) = step
             .find_attr_arg(ident)
-            .or_else(|| story.find_assignments(ident))
-            .map(ToTokens::into_token_stream)
-            .unwrap_or_else(
-                || quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") },
-            );
-        (
+            .or_else(|| story.find_assignments(ident)) else {
+                return Err(quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") });
+            };
+
+        let const_bindings = story.generate_const_bindings(expr).collect::<Vec<_>>();
+
+        Ok((
             quote![Self::#ident => stringify!(#expr),],
             quote![Self::#ident => {
+                #(#const_bindings)*
                 let #ident: #ty = #expr;
                 format!("{:?}", #ident)
             }],
             quote![Self::#ident => {
+                #(#const_bindings)*
                 let #ident: #ty = #expr;
                 ArgValue::#step_ident(arg_values::#step_ident::#ident(#ident))
             }],
-        )
-    }).collect::<Vec<_>>();
+        ))
+    }).collect::<Result<Vec<_>, _>>();
+    let arms = match result {
+        Ok(arms) => arms,
+        Err(err) => {
+            return err;
+        }
+    };
     let expr_arms = arms.iter().map(|(expr, _, _)| expr).collect::<MatchArms>();
     let debug_arms = arms
         .iter()
@@ -507,6 +517,122 @@ mod tests {
             pub(super)enum my_step1 {
                 id(UserId),
                 name(&'static str),
+            }
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_const_usage() {
+        let step: StoryStep = parse_quote! {
+            #[step("Step with const: {val}", val = MY_CONST * 2)]
+            fn step_with_const(val: i32);
+        };
+        let story_syntax: ItemStory = syn::parse_quote! {
+            trait ConstStory {
+                const MY_CONST: i32 = 10;
+                #step
+            }
+        };
+        let actual = generate_arg_impl(&story_syntax, &step);
+        let expected = quote! {
+            impl step_with_const {
+                #[inline]
+                pub(super) fn name(&self) -> &'static str {
+                    match self {
+                        Self::val => stringify!(val),
+                    }
+                }
+                #[inline]
+                pub(super) fn ty(&self) -> &'static str {
+                    match self {
+                        Self::val => stringify!(i32),
+                    }
+                }
+                #[inline]
+                pub(super) fn expr(&self) -> &'static str {
+                    match self {
+                        Self::val => stringify!(MY_CONST * 2),
+                    }
+                }
+                #[inline]
+                pub(super) fn debug_value(&self) -> String {
+                    match self {
+                        Self::val => {
+                            let MY_CONST: i32 = 10;
+                            let val: i32 = MY_CONST * 2;
+                            format!("{:?}", val)
+                        }
+                    }
+                }
+                #[inline]
+                pub(super) fn serialize_value(&self) -> ArgValue {
+                    match self {
+                        Self::val => {
+                            let MY_CONST: i32 = 10;
+                            let val: i32 = MY_CONST * 2;
+                            ArgValue::step_with_const(arg_values::step_with_const::val(val))
+                        }
+                    }
+                }
+            }
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_const_usage_with_format() {
+        let step: StoryStep = parse_quote! {
+            #[step("Step with const: {val}", val = format!("const: {MY_CONST}"))]
+            fn step_with_const(val: String);
+        };
+        let story_syntax: ItemStory = syn::parse_quote! {
+            trait ConstStory {
+                const MY_CONST: i32 = 10;
+                #step
+            }
+        };
+        let actual = generate_arg_impl(&story_syntax, &step);
+        let expected = quote! {
+            impl step_with_const {
+                #[inline]
+                pub(super) fn name(&self) -> &'static str {
+                    match self {
+                        Self::val => stringify!(val),
+                    }
+                }
+                #[inline]
+                pub(super) fn ty(&self) -> &'static str {
+                    match self {
+                        Self::val => stringify!(String),
+                    }
+                }
+                #[inline]
+                pub(super) fn expr(&self) -> &'static str {
+                    match self {
+                        Self::val => stringify!(format!("const: {MY_CONST}")),
+                    }
+                }
+                #[inline]
+                pub(super) fn debug_value(&self) -> String {
+                    match self {
+                        Self::val => {
+                            let MY_CONST: i32 = 10;
+                            let val: String = format!("const: {MY_CONST}");
+                            format!("{:?}", val)
+                        }
+                    }
+                }
+                #[inline]
+                pub(super) fn serialize_value(&self) -> ArgValue {
+                    match self {
+                        Self::val => {
+                            let MY_CONST: i32 = 10;
+                            let val: String = format!("const: {MY_CONST}");
+                            ArgValue::step_with_const(arg_values::step_with_const::val(val))
+                        }
+                    }
+                }
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
