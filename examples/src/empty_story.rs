@@ -10,5 +10,7 @@ impl EmptyStory for Env {
 
 #[test]
 fn test_empty_story() {
-    Env.run_all().unwrap();
+    use narrative::story::RunStory as _;
+    let mut env = Env;
+    EmptyStoryContext.run_story(&mut env).unwrap();
 }

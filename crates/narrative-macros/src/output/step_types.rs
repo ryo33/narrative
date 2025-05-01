@@ -62,6 +62,7 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         .cast_as(quote!(Option<StoryContext>));
 
     quote! {
+        #[derive(Clone, Copy)]
         #[allow(non_camel_case_types)]
         pub enum Step {
             #(#step_names),*
@@ -80,7 +81,11 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 #step_args
             }
             #[inline]
-            fn story(&self) -> Option<impl narrative::story::StoryContext + 'static> {
+            fn story(&self) -> impl narrative::story::StoryContext<Step = Self> + 'static {
+                StoryContext::default()
+            }
+            #[inline]
+            fn nested_story(&self) -> Option<impl narrative::story::StoryContext + 'static> {
                 #step_stories
             }
         }
@@ -88,6 +93,13 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         impl <T: #story_ident> narrative::step::Run<T, T::Error> for Step {
             #[inline]
             fn run(&self, story: &mut T) -> Result<(), T::Error> {
+                use narrative::runner::StoryRunner as _;
+                let mut runner = narrative::runner::DefaultStoryRunner;
+                self.run_with_runner(story, &mut runner)
+            }
+            #[inline]
+            fn run_with_runner(&self, story: &mut T, runner: &mut impl narrative::runner::StoryRunner<T::Error>) -> Result<(), T::Error> {
+                use narrative::runner::StoryRunner as _;
                 #step_runs
             }
         }
@@ -95,6 +107,13 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         impl <T: #async_story_ident> narrative::step::RunAsync<T, T::Error> for Step {
             #[inline]
             async fn run_async(&self, story: &mut T) -> Result<(), T::Error> {
+                use narrative::runner::AsyncStoryRunner as _;
+                let mut runner = narrative::runner::DefaultStoryRunner;
+                self.run_with_runner_async(story, &mut runner).await
+            }
+            #[inline]
+            async fn run_with_runner_async(&self, story: &mut T, runner: &mut impl narrative::runner::AsyncStoryRunner<T::Error>) -> Result<(), T::Error> {
+                use narrative::runner::AsyncStoryRunner as _;
                 #step_runs_async
             }
         }
@@ -164,14 +183,24 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
                 #(#const_bindings)*
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
-                sub_story.run_all()?;
+                let story = sub_story.get_context();
+                runner.start_story(story)?;
+                for step in story.steps() {
+                    runner.run_step(step, &mut sub_story)?;
+                }
+                runner.end_story(story)?;
                 Ok(())
             },
             quote! {
                 #(#const_bindings)*
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
-                sub_story.run_all_async().await?;
+                let story = sub_story.get_context();
+                runner.start_story(story)?;
+                for step in story.steps() {
+                    runner.run_step_async(step, &mut sub_story).await?;
+                }
+                runner.end_story(story)?;
                 Ok(())
             },
         )
@@ -469,7 +498,12 @@ mod tests {
             actual.run.to_string(),
             quote! {
                 let mut sub_story = T::run_sub(story)?;
-                sub_story.run_all()?;
+                let story = sub_story.get_context();
+                runner.start_story(story)?;
+                for step in story.steps() {
+                    runner.run_step(step, &mut sub_story)?;
+                }
+                runner.end_story(story)?;
                 Ok(())
             }
             .to_string()
@@ -479,7 +513,12 @@ mod tests {
             actual.run_async.to_string(),
             quote! {
                 let mut sub_story = T::run_sub(story)?;
-                sub_story.run_all_async().await?;
+                let story = sub_story.get_context();
+                runner.start_story(story)?;
+                for step in story.steps() {
+                    runner.run_step_async(step, &mut sub_story).await?;
+                }
+                runner.end_story(story)?;
                 Ok(())
             }
             .to_string()
@@ -512,7 +551,12 @@ mod tests {
             quote! {
                 let param: i32 = 42;
                 let mut sub_story = T::run_sub(story, param)?;
-                sub_story.run_all()?;
+                let story = sub_story.get_context();
+                runner.start_story(story)?;
+                for step in story.steps() {
+                    runner.run_step(step, &mut sub_story)?;
+                }
+                runner.end_story(story)?;
                 Ok(())
             }
             .to_string()
@@ -523,7 +567,12 @@ mod tests {
             quote! {
                 let param: i32 = 42;
                 let mut sub_story = T::run_sub(story, param)?;
-                sub_story.run_all_async().await?;
+                let story = sub_story.get_context();
+                runner.start_story(story)?;
+                for step in story.steps() {
+                    runner.run_step_async(step, &mut sub_story).await?;
+                }
+                runner.end_story(story)?;
                 Ok(())
             }
             .to_string()

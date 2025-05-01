@@ -44,7 +44,9 @@ impl MyFirstStory for MyFirstStoryEnv {
 
 #[test]
 fn test() {
-    MyFirstStoryEnv { sum: 0 }.run_all().unwrap();
+    use narrative::story::RunStory as _;
+    let mut env = MyFirstStoryEnv { sum: 0 };
+    MyFirstStoryContext.run_story(&mut env).unwrap();
 }
 
 #[test]

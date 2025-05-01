@@ -96,12 +96,26 @@ the declaration, but it's fine.
 
 ```rust
 fn main() {
-    let mut story = MyFirstStory { apples: 0, oranges: 0 };
-    // You can run the story, and get the result.
-    let story_result = story.run_all();
-    // You can run the story step by step.
-    for step in story.get_context().steps() {
-        let step_result = step.run();
+    // Create your story implementation (the "env")
+    let mut env = MyFirstStoryImpl { apples: 0, oranges: 0 };
+
+    // Run the entire story with the default runner
+    let result = MyFirstStory::context().run_story(&mut env);
+
+    // Or run with a custom runner
+    use narrative::runner::DefaultStoryRunner;
+    // This is actually the default runner, so this is the same as the above
+    let mut runner = DefaultStoryRunner;
+    let result = MyFirstStory::context()
+        .run_story_with_runner(&mut env, &mut runner);
+
+    // Step-by-step execution
+    let context = MyFirstStory::context();
+    for step in context.steps() {
+        // Run the step and handle nested stories
+        let step_result = step.run(&mut env);
+        // Or with a runner
+        let runner_step_result = step.run_with_runner(&mut env, &mut runner);
     }
 }
 ```
@@ -157,7 +171,7 @@ than other stories.
 trait MyFirstStory {
     fn data() {
         struct UserName(String);
-    
+
         trait UserId {
             /// Generate a new user id with random uuid v4.
             fn new_v4() -> Self;
@@ -194,7 +208,7 @@ its design, implementation, and usage. Narrative leverages Rust's core
 functionality and rust-analyzer to provide rich development experience. Rust
 wouldn't the best language for writing end-to-end tests for everyone, but, We
 believe that it still has advantages in this area, with a great compiler,
-robust, yet straightforward type system, and libraries from the vibrant
+robust, yet Default type system, and libraries from the vibrant
 community.~~
 
 Users can dynamically get story context, so you can implement steps in other

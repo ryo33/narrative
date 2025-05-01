@@ -1,4 +1,9 @@
-use crate::step::{DynStep, Step};
+use std::future::Future;
+
+use crate::{
+    runner::{AsyncStoryRunner, DefaultStoryRunner, StoryRunner},
+    step::{DynStep, Run, RunAsync, Step},
+};
 
 /// A trait for handing a story in general.
 // `&self` is not actually used, and is for future compatibility and friendly API.
@@ -10,7 +15,7 @@ pub trait StoryContext: Sized {
     fn story_id(&self) -> &'static str;
     fn consts(&self) -> impl Iterator<Item = impl StoryConst + 'static> + 'static;
     /// Returns the steps of the story.
-    fn steps(&self) -> impl Iterator<Item = Self::Step> + 'static;
+    fn steps(&self) -> impl Iterator<Item = Self::Step> + Send + 'static;
 }
 
 pub trait StoryConst: Clone + std::fmt::Debug {
@@ -88,5 +93,67 @@ impl<T: StoryConst + private::SealedDynStoryConst> DynStoryConst for T {
 
     fn serialize_value(&self) -> Box<dyn erased_serde::Serialize> {
         Box::new(StoryConst::serialize_value(self))
+    }
+}
+
+pub trait RunStory<T, S, E> {
+    fn run_story(&self, env: &mut S) -> Result<(), E>;
+    fn run_story_with_runner(&self, env: &mut S, runner: &mut impl StoryRunner<E>)
+        -> Result<(), E>;
+}
+
+impl<T, S, E> RunStory<T, S, E> for T
+where
+    T: StoryContext + Copy,
+    T::Step: Run<S, E>,
+{
+    fn run_story(&self, env: &mut S) -> Result<(), E> {
+        let mut runner = DefaultStoryRunner;
+        Self::run_story_with_runner(self, env, &mut runner)
+    }
+    fn run_story_with_runner(
+        &self,
+        env: &mut S,
+        runner: &mut impl StoryRunner<E>,
+    ) -> Result<(), E> {
+        runner.start_story(*self)?;
+        for step in self.steps() {
+            runner.run_step(step, env)?;
+        }
+        runner.end_story(*self)?;
+        Ok(())
+    }
+}
+
+pub trait RunStoryAsync<T, S, E> {
+    fn run_story_async(&self, env: &mut S) -> impl Future<Output = Result<(), E>> + Send;
+    fn run_story_with_runner_async(
+        &self,
+        env: &mut S,
+        runner: &mut (impl AsyncStoryRunner<E> + Send),
+    ) -> impl Future<Output = Result<(), E>> + Send;
+}
+
+impl<T, S, E> RunStoryAsync<T, S, E> for T
+where
+    T: StoryContext + Copy + Send + Sync,
+    T::Step: RunAsync<S, E> + Send + Sync,
+    S: Send + Sync,
+{
+    async fn run_story_async(&self, env: &mut S) -> Result<(), E> {
+        let mut runner = DefaultStoryRunner;
+        Self::run_story_with_runner_async(self, env, &mut runner).await
+    }
+    async fn run_story_with_runner_async(
+        &self,
+        env: &mut S,
+        runner: &mut (impl AsyncStoryRunner<E> + Send),
+    ) -> Result<(), E> {
+        runner.start_story(*self)?;
+        for step in self.steps() {
+            runner.run_step_async(step, env).await?;
+        }
+        runner.end_story(*self)?;
+        Ok(())
     }
 }

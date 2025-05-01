@@ -56,11 +56,13 @@ pub fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
             #(#types)*
             #(#consts)*
             type Context: narrative::story::StoryContext;
+            const CONTEXT: Self::Context;
         }
         impl<T: #story_trait_ident> #trait_ident for T {
             #(#types_assigns)*
             #(#consts_assigns)*
             type Context = StoryContext;
+            const CONTEXT: StoryContext = StoryContext;
         }
     }
 }
@@ -84,9 +86,11 @@ mod tests {
         let expected = quote! {
             pub trait BaseTrait {
                 type Context: narrative::story::StoryContext;
+                const CONTEXT: Self::Context;
             }
             impl<T: User> BaseTrait for T {
                 type Context = StoryContext;
+                const CONTEXT: StoryContext = StoryContext;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -111,11 +115,13 @@ mod tests {
                 type UserId;
                 type UserKind;
                 type Context: narrative::story::StoryContext;
+                const CONTEXT: Self::Context;
             }
             impl<T: User> BaseTrait for T {
                 type UserId = UserId;
                 type UserKind = UserKind;
                 type Context = StoryContext;
+                const CONTEXT: StoryContext = StoryContext;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -140,11 +146,13 @@ mod tests {
                 type UserId<T>;
                 type UserKind<T: Clone>;
                 type Context: narrative::story::StoryContext;
+                const CONTEXT: Self::Context;
             }
             impl<T: User> BaseTrait for T {
                 type UserId<T> = UserId<T>;
                 type UserKind<T: Clone> = UserKind<T>;
                 type Context = StoryContext;
+                const CONTEXT: StoryContext = StoryContext;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -164,9 +172,11 @@ mod tests {
         let expected = quote! {
             pub trait AsyncBaseTrait {
                 type Context: narrative::story::StoryContext;
+                const CONTEXT: Self::Context;
             }
             impl<T: AsyncUser> AsyncBaseTrait for T {
                 type Context = StoryContext;
+                const CONTEXT: StoryContext = StoryContext;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());

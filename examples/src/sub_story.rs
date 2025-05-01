@@ -96,10 +96,11 @@ impl AsyncMainStory for MainStoryImpl {
 
 #[test]
 fn test() {
-    let mut story = MainStoryImpl { state: vec![] };
-    story.run_all().unwrap();
+    use narrative::story::RunStory as _;
+    let mut env = MainStoryImpl { state: vec![] };
+    MainStoryContext.run_story(&mut env).unwrap();
     assert_eq!(
-        story.state,
+        env.state,
         vec![
             "sub_step_1: None",
             "sub_step_2: None",
@@ -111,10 +112,11 @@ fn test() {
 
 #[test]
 fn test_async() {
-    let mut story = MainStoryImpl { state: vec![] };
-    futures::executor::block_on(story.run_all_async()).unwrap();
+    use narrative::story::RunStoryAsync as _;
+    let mut env = MainStoryImpl { state: vec![] };
+    futures::executor::block_on(MainStoryContext.run_story_async(&mut env)).unwrap();
     assert_eq!(
-        story.state,
+        env.state,
         vec![
             "sub_step_1: None",
             "sub_step_2: None",

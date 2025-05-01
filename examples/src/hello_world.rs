@@ -27,9 +27,10 @@ impl HelloWorld for Env {
 
 #[test]
 fn test() {
-    let mut story = Env {
+    use narrative::story::RunStory as _;
+    let mut env = Env {
         buf: BufWriter::new(Vec::new()),
     };
-    story.run_all().unwrap();
-    assert_eq!(story.buf.into_inner().unwrap(), b"Hello, World!");
+    HelloWorldContext.run_story(&mut env).unwrap();
+    assert_eq!(env.buf.into_inner().unwrap(), b"Hello, World!");
 }

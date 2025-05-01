@@ -1,19 +1,38 @@
-use crate::story::{BoxedStoryContext, StoryContext};
+use crate::{
+    runner::{AsyncStoryRunner, StoryRunner},
+    story::{BoxedStoryContext, StoryContext},
+};
 
 // T and E can be any type by implementing the story trait in any way.
 pub trait Step {
+    /// Returns the text representation of the step.
     fn step_text(&self) -> String;
+    /// Returns the id, which is the method name, of the step.
     fn step_id(&self) -> &'static str;
+    /// Returns the arguments of the step.
     fn args(&self) -> impl Iterator<Item = impl StepArg + 'static> + 'static;
-    fn story(&self) -> Option<impl StoryContext + 'static>;
+    /// Returns the parent story of the step.
+    fn story(&self) -> impl StoryContext<Step = Self> + 'static;
+    /// Returns the sub story that this step references.
+    fn nested_story(&self) -> Option<impl StoryContext + 'static>;
 }
 
 pub trait Run<T, E>: Step {
+    /// Runs the step.
     fn run(&self, story: &mut T) -> Result<(), E>;
+    /// Runs the step, but with a runner if the step has a sub story.
+    fn run_with_runner(&self, story: &mut T, runner: &mut impl StoryRunner<E>) -> Result<(), E>;
 }
 
 pub trait RunAsync<T, E>: Step {
+    /// Runs the step asynchronously.
     fn run_async(&self, story: &mut T) -> impl std::future::Future<Output = Result<(), E>> + Send;
+    /// Runs the step asynchronously, but with a runner if the step has a sub story.
+    fn run_with_runner_async(
+        &self,
+        story: &mut T,
+        runner: &mut (impl AsyncStoryRunner<E> + Send),
+    ) -> impl std::future::Future<Output = Result<(), E>> + Send;
 }
 
 pub trait StepArg: Clone + std::fmt::Debug {
@@ -39,7 +58,7 @@ pub trait DynStep: private::SealedDynStep {
     fn step_text(&self) -> String;
     fn step_id(&self) -> &'static str;
     fn args(&self) -> Box<dyn Iterator<Item = Box<dyn DynStepArg>>>;
-    fn story(&self) -> Option<BoxedStoryContext>;
+    fn nested_story(&self) -> Option<BoxedStoryContext>;
 }
 
 pub trait DynStepArg: private::SealedDynStepArg {
@@ -66,8 +85,8 @@ impl<T: Step + private::SealedDynStep> DynStep for T {
         Box::new(Step::args(self).map(|a| Box::new(a) as Box<dyn DynStepArg>))
     }
 
-    fn story(&self) -> Option<BoxedStoryContext> {
-        Step::story(self).map(|s| Box::new(s) as BoxedStoryContext)
+    fn nested_story(&self) -> Option<BoxedStoryContext> {
+        Step::nested_story(self).map(|s| Box::new(s) as BoxedStoryContext)
     }
 }
 

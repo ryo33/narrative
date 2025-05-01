@@ -36,7 +36,7 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
     );
     let const_len = input.consts().count();
     quote! {
-        #[derive(Default)]
+        #[derive(Default, Clone, Copy)]
         pub struct StoryContext;
         impl StoryContext {
             #(#consts_defs)*
@@ -54,7 +54,7 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
                 stringify!(#ident)
             }
             #[inline]
-            fn steps(&self) -> impl Iterator<Item = Self::Step> + 'static {
+            fn steps(&self) -> impl Iterator<Item = Self::Step> + 'static + Send {
                 [#(Step::#step_names),*].into_iter()
             }
             #[inline]
@@ -124,7 +124,7 @@ mod tests {
         };
         let actual = generate(&attr, &story_syntax);
         let expected = quote! {
-            #[derive(Default)]
+            #[derive(Default, Clone, Copy)]
             pub struct StoryContext;
             impl StoryContext {
                 pub const NAME: &str = "Ryo";
@@ -151,7 +151,7 @@ mod tests {
                     stringify!(UserStory)
                 }
                 #[inline]
-                fn steps(&self) -> impl Iterator<Item = Self::Step> + 'static {
+                fn steps(&self) -> impl Iterator<Item = Self::Step> + 'static + Send {
                     [Step::step1, Step::step2].into_iter()
                 }
                 #[inline]

@@ -16,7 +16,6 @@ mod step_args;
 mod step_types;
 mod story_consts;
 mod story_context;
-mod story_ext;
 
 mod dummy_environment;
 
@@ -43,8 +42,6 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     let story_consts = story_consts::generate(item);
     let story_context = story_context::generate(attr, item);
     let context_ext = story_context::generate_ext(item);
-    let story_ext = story_ext::generate(item, Asyncness::Sync);
-    let async_story_ext = story_ext::generate(item, Asyncness::Async);
     let local_type_impls = local_type_impls::generate(item);
     let local_type_assertions = local_type_assertions::generate(item);
     let dummy_environment = dummy_environment::generate(item, Asyncness::Sync);
@@ -69,8 +66,6 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
             #story_consts
             #story_context
             #context_ext
-            #story_ext
-            #async_story_ext
             #local_type_impls
             #local_type_assertions
             #dummy_environment
@@ -85,8 +80,6 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
         pub use #mod_ident::#async_ident;
         #[allow(unused_imports)]
         pub use #mod_ident::StoryContext as #context_ident;
-        pub use #mod_ident::StoryExt as _;
-        pub use #mod_ident::AsyncStoryExt as _;
         pub use #mod_ident::ContextExt as _;
         pub use #mod_ident::AsyncContextExt as _;
         pub use #mod_ident::BaseTrait as _;

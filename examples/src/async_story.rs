@@ -42,6 +42,7 @@ impl AsyncMyFirstStory for MyFirstStoryEnv {
 
 #[test]
 fn test() {
+    use narrative::story::RunStoryAsync as _;
     let mut env = MyFirstStoryEnv { sum: 0 };
-    let _ = futures::executor::block_on(env.run_all_async());
+    let _ = futures::executor::block_on(MyFirstStoryContext.run_story_async(&mut env));
 }

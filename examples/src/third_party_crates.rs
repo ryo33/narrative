@@ -41,10 +41,11 @@ impl ThirdPartyCrates for ThirdPartyCratesImpl {
 
 #[test]
 fn test_third_party_crates() {
-    let mut story = ThirdPartyCratesImpl { state: vec![] };
-    story.run_all().unwrap();
+    use narrative::story::RunStory as _;
+    let mut env = ThirdPartyCratesImpl { state: vec![] };
+    ThirdPartyCratesContext.run_story(&mut env).unwrap();
     assert_eq!(
-        story.state,
+        env.state,
         vec![
             "Generated UUID: 14f95cf3-4302-4e59-9b49-e40cdc4c6ba3",
             "Time jumped to: 2025-04-28 00:00:00 +00:00",
