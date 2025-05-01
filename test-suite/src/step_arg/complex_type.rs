@@ -1,6 +1,6 @@
-use narrative::environment::DummyEnvironment;
+use narrative::{environment::DummyEnvironment, story::RunStory};
 
-use crate::run_test;
+use crate::TestRunner;
 
 #[narrative::story("Complex step type")]
 trait ComplexStepType {
@@ -13,5 +13,9 @@ trait ComplexStepType {
 
 #[test]
 fn test_complex_step_type() {
-    run_test!(ComplexStepTypeContext, DummyEnvironment);
+    let mut env = DummyEnvironment;
+    let mut runner = TestRunner::default();
+    ComplexStepTypeContext
+        .run_story_with_runner(&mut env, &mut runner)
+        .unwrap();
 }
