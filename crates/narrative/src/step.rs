@@ -10,11 +10,11 @@ pub trait Step {
     /// Returns the id, which is the method name, of the step.
     fn step_id(&self) -> &'static str;
     /// Returns the arguments of the step.
-    fn args(&self) -> impl Iterator<Item = impl StepArg + 'static> + 'static;
+    fn args(&self) -> impl Iterator<Item = impl StepArg + Send + 'static> + Send + 'static;
     /// Returns the parent story of the step.
-    fn story(&self) -> impl StoryContext<Step = Self> + 'static;
+    fn story(&self) -> impl StoryContext<Step = Self> + Send + 'static;
     /// Returns the sub story that this step references.
-    fn nested_story(&self) -> Option<impl StoryContext + 'static>;
+    fn nested_story(&self) -> Option<impl StoryContext + Send + 'static>;
 }
 
 pub trait Run<T, E>: Step {

@@ -13,7 +13,7 @@ pub trait StoryContext: Sized {
     fn story_title(&self) -> String;
     /// Returns the identifier of the story.
     fn story_id(&self) -> &'static str;
-    fn consts(&self) -> impl Iterator<Item = impl StoryConst + 'static> + 'static;
+    fn consts(&self) -> impl Iterator<Item = impl StoryConst + Send + 'static> + Send + 'static;
     /// Returns the steps of the story.
     fn steps(&self) -> impl Iterator<Item = Self::Step> + Send + 'static;
 }
