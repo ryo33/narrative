@@ -137,8 +137,8 @@ pub trait RunStoryAsync<T, S, E> {
 impl<T, S, E> RunStoryAsync<T, S, E> for T
 where
     T: StoryContext + Copy + Send + Sync,
-    T::Step: RunAsync<S, E> + Send + Sync,
-    S: Send + Sync,
+    T::Step: RunAsync<S, E> + Send,
+    S: Send,
 {
     async fn run_story_async(&self, env: &mut S) -> Result<(), E> {
         let mut runner = DefaultStoryRunner;

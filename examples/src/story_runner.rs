@@ -1,6 +1,7 @@
 use narrative::{
     runner::{AsyncStoryRunner, StoryRunner},
     step::{Run, RunAsync, Step},
+    story::{RunStory, RunStoryAsync, StoryContext},
 };
 
 #[allow(dead_code)]
@@ -27,6 +28,24 @@ impl<E> StoryRunner<E> for LoggingStoryRunner {
     {
         self.log.push(format!("Running step: {}", step.step_text()));
         step.run_with_runner(state, self)
+    }
+
+    fn run_nested_story<S, Env>(
+        &mut self,
+        step: impl Step,
+        nested_story: S,
+        env: &mut Env,
+    ) -> Result<(), E>
+    where
+        S::Step: Run<Env, E>,
+        S: StoryContext + RunStory<S, Env, E>,
+    {
+        self.log.push(format!(
+            "Starting nested story: {}; {}",
+            step.step_text(),
+            nested_story.story_title(),
+        ));
+        nested_story.run_story_with_runner(env, self)
     }
 }
 
@@ -57,6 +76,25 @@ impl<E> AsyncStoryRunner<E> for LoggingStoryRunner {
             self.log.push(format!("Running step: {}", step.step_text()));
             step.run_with_runner_async(state, self).await
         })
+    }
+
+    fn run_nested_story_async<S, Env>(
+        &mut self,
+        step: impl Step + Send,
+        nested_story: S,
+        env: &mut Env,
+    ) -> impl std::future::Future<Output = Result<(), E>> + Send
+    where
+        S: StoryContext + RunStoryAsync<S, Env, E> + Send,
+        Env: Send,
+        S::Step: RunAsync<Env, E> + Send,
+    {
+        self.log.push(format!(
+            "Starting nested story: {}; {}",
+            step.step_text(),
+            nested_story.story_title(),
+        ));
+        Box::pin(async move { nested_story.run_story_async(env).await })
     }
 }
 
@@ -120,11 +158,13 @@ fn test_sub_story() {
         vec![
             "Starting story: This is a main story",
             "Running step: do sub story",
+            "Starting nested story: do sub story; This is a sub story",
             "Starting story: This is a sub story",
             "Running step: sub_step_1",
             "Running step: sub_step_2",
             "Ending story: This is a sub story",
             "Running step: do sub story with args",
+            "Starting nested story: do sub story with args; This is a sub story",
             "Starting story: This is a sub story",
             "Running step: sub_step_1",
             "Running step: sub_step_2",

@@ -184,11 +184,7 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
                 let story = sub_story.get_context();
-                runner.start_story(story)?;
-                for step in story.steps() {
-                    runner.run_step(step, &mut sub_story)?;
-                }
-                runner.end_story(story)?;
+                runner.run_nested_story(Step::#step_name, story, &mut sub_story)?;
                 Ok(())
             },
             quote! {
@@ -196,11 +192,7 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
                 let story = sub_story.get_context();
-                runner.start_story(story)?;
-                for step in story.steps() {
-                    runner.run_step_async(step, &mut sub_story).await?;
-                }
-                runner.end_story(story)?;
+                runner.run_nested_story_async(Step::#step_name, story, &mut sub_story).await?;
                 Ok(())
             },
         )
@@ -499,11 +491,7 @@ mod tests {
             quote! {
                 let mut sub_story = T::run_sub(story)?;
                 let story = sub_story.get_context();
-                runner.start_story(story)?;
-                for step in story.steps() {
-                    runner.run_step(step, &mut sub_story)?;
-                }
-                runner.end_story(story)?;
+                runner.run_nested_story(Step::run_sub, story, &mut sub_story)?;
                 Ok(())
             }
             .to_string()
@@ -514,11 +502,7 @@ mod tests {
             quote! {
                 let mut sub_story = T::run_sub(story)?;
                 let story = sub_story.get_context();
-                runner.start_story(story)?;
-                for step in story.steps() {
-                    runner.run_step_async(step, &mut sub_story).await?;
-                }
-                runner.end_story(story)?;
+                runner.run_nested_story_async(Step::run_sub, story, &mut sub_story).await?;
                 Ok(())
             }
             .to_string()
@@ -552,11 +536,7 @@ mod tests {
                 let param: i32 = 42;
                 let mut sub_story = T::run_sub(story, param)?;
                 let story = sub_story.get_context();
-                runner.start_story(story)?;
-                for step in story.steps() {
-                    runner.run_step(step, &mut sub_story)?;
-                }
-                runner.end_story(story)?;
+                runner.run_nested_story(Step::run_sub, story, &mut sub_story)?;
                 Ok(())
             }
             .to_string()
@@ -568,11 +548,7 @@ mod tests {
                 let param: i32 = 42;
                 let mut sub_story = T::run_sub(story, param)?;
                 let story = sub_story.get_context();
-                runner.start_story(story)?;
-                for step in story.steps() {
-                    runner.run_step_async(step, &mut sub_story).await?;
-                }
-                runner.end_story(story)?;
+                runner.run_nested_story_async(Step::run_sub, story, &mut sub_story).await?;
                 Ok(())
             }
             .to_string()
