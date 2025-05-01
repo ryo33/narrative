@@ -13,10 +13,7 @@ pub mod serde {
 pub mod prelude {
     pub use crate::step::Run as _;
     pub use crate::step::RunAsync as _;
+    pub use crate::story::RunStory as _;
+    pub use crate::story::RunStoryAsync as _;
     pub use crate::story::StoryContext as _;
-}
-
-pub struct RunAllError<T, E> {
-    pub step_id: T,
-    pub error: E,
 }

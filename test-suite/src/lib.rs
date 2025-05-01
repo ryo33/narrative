@@ -63,6 +63,6 @@ impl<E: std::fmt::Display> StoryRunner<E> for TestRunner {
                 step.run_with_runner(env, self)?;
             }
         }
-        nested_story.run_story(env)
+        nested_story.run_story_with_runner(env, self)
     }
 }

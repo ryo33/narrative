@@ -27,10 +27,11 @@ pub trait StoryConst: Clone + std::fmt::Debug {
     fn expr(&self) -> &'static str;
     /// Returns the debug representation of the value.
     fn debug_value(&self) -> String;
-    /// Serializes the value to the given serializer.
+    /// Returns the value for serialization.
     fn serialize_value(&self) -> impl serde::Serialize + 'static;
 }
 
+/// A boxed trait object for [StoryContext].
 pub type BoxedStoryContext = Box<dyn DynStoryContext>;
 
 mod private {
@@ -38,18 +39,29 @@ mod private {
     pub trait SealedDynStoryConst {}
 }
 
+/// A trait object for [StoryContext].
 pub trait DynStoryContext: private::SealedDynStoryContext {
+    /// Returns the title of the story.
     fn story_title(&self) -> String;
+    /// Returns the identifier of the story.
     fn story_id(&self) -> &'static str;
+    /// Returns the constants of the story.
     fn consts(&self) -> Box<dyn Iterator<Item = Box<dyn DynStoryConst>>>;
+    /// Returns the steps of the story.
     fn steps(&self) -> Box<dyn Iterator<Item = Box<dyn DynStep>>>;
 }
 
+/// A trait object for [StoryConst].
 pub trait DynStoryConst: private::SealedDynStoryConst {
+    /// Returns the name of the constant value.
     fn name(&self) -> &'static str;
+    /// Returns the type of the constant value.
     fn ty(&self) -> &'static str;
+    /// Returns the real expression of the constant value.
     fn expr(&self) -> &'static str;
+    /// Returns the debug representation of the value.
     fn debug_value(&self) -> String;
+    /// Returns the value for serialization.
     fn serialize_value(&self) -> Box<dyn erased_serde::Serialize>;
 }
 
