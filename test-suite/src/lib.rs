@@ -3,6 +3,7 @@
 
 use narrative::{runner::StoryRunner, step::Run};
 
+mod format_args_variants;
 mod multiple_stories_in_one_file;
 mod step_arg;
 mod story_consts;

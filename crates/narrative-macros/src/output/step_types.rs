@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
@@ -152,6 +154,16 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         .collect();
     let const_bindings = step.generate_const_bindings(story);
     let extracted_format_args = step.extract_format_args();
+
+    // Collect format args from step attributes first
+    let attr_names = step
+        .attr
+        .args
+        .iter()
+        .filter(|arg| extracted_format_args.contains(&arg.ident.to_string()))
+        .map(|arg| arg.ident.to_string())
+        .collect::<BTreeSet<_>>();
+
     let format_args_from_attr = step.attr.args.iter().filter_map(|arg| {
         if extracted_format_args.contains(&arg.ident.to_string()) {
             let value = &arg.value;
@@ -161,13 +173,16 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         }
     });
     let format_args_from_global = story.consts().filter_map(|StoryConst { raw, default }| {
-        if extracted_format_args.contains(&raw.ident.to_string()) {
+        if extracted_format_args.contains(&raw.ident.to_string())
+            && !attr_names.contains(&raw.ident.to_string())
+        {
             let expr = &default.1;
             Some((&raw.ident, quote!(#expr)))
         } else {
             None
         }
     });
+
     let format_args = format_args_from_attr
         .chain(format_args_from_global)
         .map(|(ident, expr)| {
@@ -596,6 +611,40 @@ mod tests {
                 let MY_CONST: i32 = 10;
                 let param: i32 = MY_CONST * 2;
                 T::my_step(story, param).await
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn test_step_text_override_global_assignment() {
+        let step = parse_quote! {
+            #[step("Step 1: {name}", name = "override")]
+            fn my_step1(name: &str);
+        };
+        let story_syntax = parse_quote! {
+            trait UserStory {
+                const name: &str = "original";
+                #step
+            }
+        };
+        let actual = generate_step(&story_syntax, &step);
+
+        // Step attribute value should override global constant in format args
+        assert_eq!(
+            actual.step_text.to_string(),
+            quote! {
+                format!("Step 1: {name}", name = "override")
+            }
+            .to_string()
+        );
+
+        // The run method binds the value from the attribute
+        assert_eq!(
+            actual.run.to_string(),
+            quote! {
+                let name: &str = "override";
+                T::my_step1(story, name)
             }
             .to_string()
         );

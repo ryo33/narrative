@@ -2,13 +2,14 @@ pub mod story_const;
 pub mod story_item;
 pub mod story_step;
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
     braced,
-    parse::{Parse, ParseStream},
+    parse::{discouraged::Speculative as _, Parse, ParseStream},
+    punctuated::Punctuated,
     visit::Visit,
     Expr, Token,
 };
@@ -78,15 +79,15 @@ impl ItemStory {
     ) -> impl Iterator<Item = ConstBinding> {
         // Visitor to find constants used in an expression
         struct ConstUsageVisitor<'a> {
-            known_consts: &'a HashSet<String>,
-            used_consts: HashSet<String>,
+            known_consts: &'a BTreeSet<String>,
+            used_consts: BTreeSet<String>,
         }
 
         impl<'a> ConstUsageVisitor<'a> {
-            fn new(known_consts: &'a HashSet<String>) -> Self {
+            fn new(known_consts: &'a BTreeSet<String>) -> Self {
                 Self {
                     known_consts,
-                    used_consts: HashSet::new(),
+                    used_consts: BTreeSet::new(),
                 }
             }
         }
@@ -100,11 +101,40 @@ impl ItemStory {
                     }
                 }
             }
+
             fn visit_macro(&mut self, mac: &syn::Macro) {
-                if mac.path.is_ident("format") || mac.path.is_ident("format_args") {
+                if mac.path.is_ident("format")
+                    || mac.path.is_ident("format_args")
+                    || mac.path.is_ident("println")
+                    || mac.path.is_ident("eprintln")
+                    || mac.path.is_ident("print")
+                    || mac.path.is_ident("eprint")
+                    || mac.path.is_ident("panic")
+                    || mac.path.is_ident("todo")
+                    || mac.path.is_ident("unimplemented")
+                {
                     let only_first_token = mac.tokens.clone().into_iter().take(1).collect();
                     let format: syn::LitStr = syn::parse2(only_first_token).unwrap();
-                    for arg in collect_format_args(&format) {
+                    let mut extracted = collect_format_args(&format);
+                    let Ok(args) = syn::parse2::<FormatArgs>(mac.tokens.clone()) else {
+                        // This case format syntax should be wrong, so that rust-analyzer should report an error.
+                        eprintln!("format syntax is wrong: {:?}", mac);
+                        return;
+                    };
+                    for arg in args.0 {
+                        match arg {
+                            FormatArg::Var(expr) => self.visit_expr(&expr),
+                            FormatArg::Named {
+                                name,
+                                _eq_token: _,
+                                expr,
+                            } => {
+                                extracted.retain(|arg| name != arg);
+                                self.visit_expr(&expr);
+                            }
+                        }
+                    }
+                    for arg in extracted {
                         if self.known_consts.contains(&arg) {
                             self.used_consts.insert(arg);
                         }
@@ -114,7 +144,7 @@ impl ItemStory {
         }
 
         // Find used constants in the expression
-        let const_idents: HashSet<String> =
+        let const_idents: BTreeSet<String> =
             self.consts().map(|c| c.raw.ident.to_string()).collect();
         let mut visitor = ConstUsageVisitor::new(&const_idents);
         visitor.visit_expr(expr);
@@ -129,6 +159,7 @@ impl ItemStory {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ConstBinding<'a> {
     pub ident: &'a syn::Ident,
     pub ty: &'a syn::Type,
@@ -146,10 +177,59 @@ impl ToTokens for ConstBinding<'_> {
     }
 }
 
+struct FormatArgs(Punctuated<FormatArg, Token![,]>);
+impl Parse for FormatArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let _ = input.parse::<syn::LitStr>()?;
+        let _ = input.parse::<syn::Token![,]>(); // no `?` here for the case with no args
+        let args = Punctuated::parse_terminated(input)?;
+        Ok(Self(args))
+    }
+}
+enum FormatArg {
+    Var(syn::Expr),
+    Named {
+        name: syn::Ident,
+        _eq_token: syn::Token![=],
+        expr: syn::Expr,
+    },
+}
+
+impl Parse for FormatArg {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        fn parse_named(input: ParseStream) -> syn::Result<FormatArg> {
+            let name = input.parse::<syn::Ident>()?;
+            let eq_token = input.parse::<syn::Token![=]>()?;
+            let expr = input.parse::<syn::Expr>()?;
+            Ok(FormatArg::Named {
+                name,
+                _eq_token: eq_token,
+                expr,
+            })
+        }
+        let fork = input.fork();
+        if let Ok(args) = parse_named(&fork) {
+            input.advance_to(&fork);
+            Ok(args)
+        } else {
+            Ok(FormatArg::Var(input.parse()?))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use quote::quote;
+
+    #[test]
+    fn test_format_arg() {
+        let input: syn::Macro = syn::parse_quote! {
+            format!("User: {}, Items: {unused}", user_id, unused = count)
+        };
+        let args = syn::parse2::<FormatArgs>(input.tokens).unwrap();
+        assert_eq!(args.0.len(), 2);
+    }
 
     #[test]
     fn parse_story() {
@@ -178,5 +258,116 @@ mod tests {
         assert!(matches!(items[1], StoryItem::Const { .. }));
         assert!(matches!(items[2], StoryItem::Step(_)));
         assert!(matches!(items[3], StoryItem::Step(_)));
+    }
+
+    fn create_test_story() -> ItemStory {
+        let input = quote! {
+            trait TestStory {
+                const user_id: String = "test-user".to_string();
+                const count: u32 = 5;
+                const unused: bool = true;
+
+                #[step("Test step")]
+                fn test_step();
+            }
+        };
+        syn::parse2::<ItemStory>(input).expect("Failed to parse story")
+    }
+
+    #[test]
+    fn test_generate_const_bindings_single_constant() {
+        let story = create_test_story();
+
+        // Test with expression that uses one constant as a direct path reference
+        let expr = syn::parse2::<Expr>(quote! {
+            user_id
+        })
+        .unwrap();
+
+        let bindings: Vec<_> = story.generate_const_bindings(&expr).collect();
+        assert_eq!(bindings.len(), 1);
+        assert_eq!(bindings[0].ident, "user_id");
+    }
+
+    #[test]
+    fn test_generate_const_bindings_multiple_constants() {
+        let story = create_test_story();
+
+        // Test with expression that uses multiple constants in a tuple
+        let expr = syn::parse2::<Expr>(quote! {
+            (user_id, count)
+        })
+        .unwrap();
+
+        let bindings: Vec<_> = story.generate_const_bindings(&expr).collect();
+        assert_eq!(bindings.len(), 2);
+        assert_eq!(bindings[0].ident, "user_id");
+        assert_eq!(bindings[1].ident, "count");
+    }
+
+    #[test]
+    fn test_generate_const_bindings_no_constants() {
+        let story = create_test_story();
+
+        // Test with expression that doesn't use any constants
+        let expr = syn::parse2::<Expr>(quote! {
+            "Hello world"
+        })
+        .unwrap();
+
+        let bindings: Vec<_> = story.generate_const_bindings(&expr).collect();
+        assert_eq!(bindings.len(), 0);
+    }
+
+    #[test]
+    fn test_generate_const_bindings_format_macro() {
+        let story = create_test_story();
+
+        // Test with format macro
+        let expr = syn::parse2::<Expr>(quote! {
+            format!("User: {user_id}, Items: {count}")
+        })
+        .unwrap();
+
+        let bindings: Vec<_> = story.generate_const_bindings(&expr).collect();
+        assert_eq!(bindings.len(), 2);
+        assert_eq!(bindings[0].ident, "user_id");
+        assert_eq!(bindings[1].ident, "count");
+    }
+
+    #[test]
+    fn test_generate_const_bindings_format_macro_with_args() {
+        let story = create_test_story();
+
+        // Test with format macro
+        let expr = syn::parse2::<Expr>(quote! {
+            format!("User: {}, Items: {unused}", user_id, unused = count)
+        })
+        .unwrap();
+
+        let bindings: Vec<_> = story.generate_const_bindings(&expr).collect();
+        assert_eq!(bindings.len(), 2);
+        assert_eq!(bindings[0].ident, "user_id");
+        assert_eq!(bindings[1].ident, "count");
+    }
+
+    #[test]
+    fn test_generate_const_bindings_in_complex_expr() {
+        let story = create_test_story();
+
+        // Test with constants used in a more complex expression
+        let expr = syn::parse2::<Expr>(quote! {
+            if user_id.len() > 0 {
+                count + 1
+            } else {
+                0
+            }
+        })
+        .unwrap();
+
+        let bindings: Vec<_> = story.generate_const_bindings(&expr).collect();
+        assert_eq!(bindings.len(), 2);
+        assert_eq!(bindings[0].ident, "user_id");
+        assert_eq!(bindings[1].ident, "count");
     }
 }
