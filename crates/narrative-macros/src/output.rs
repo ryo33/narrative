@@ -91,6 +91,7 @@ struct MatchArms {
     arms: Vec<TokenStream>,
     cast_as: Option<TokenStream>,
     match_target: Option<TokenStream>,
+    fallback: Option<TokenStream>,
 }
 
 impl MatchArms {
@@ -101,6 +102,11 @@ impl MatchArms {
 
     pub fn match_target(mut self, match_target: TokenStream) -> Self {
         self.match_target = Some(match_target);
+        self
+    }
+
+    pub fn with_fallback(mut self, fallback: TokenStream) -> Self {
+        self.fallback = Some(fallback);
         self
     }
 }
@@ -140,9 +146,15 @@ impl ToTokens for MatchArms {
         } else {
             let arms = &self.arms;
             let match_target = self.match_target.clone().unwrap_or_else(|| quote!(self));
+            let fallback = self.fallback.as_ref().map(|fallback| {
+                quote! {
+                    _ => #fallback,
+                }
+            });
             quote! {
                 match #match_target {
                     #(#arms)*
+                    #fallback
                 }
             }
         };

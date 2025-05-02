@@ -11,15 +11,18 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
     let steps = input.steps().map(|step| {
         let step_fn = step_fn::generate(step, asyncness);
         let body = if step.has_sub_story() {
-            quote!(Ok(narrative::environment::DummyEnvironment))
+            quote!(Ok(
+                narrative::environment::DummyEnvironment::<Self::Error>::default()
+            ))
         } else {
             match asyncness {
                 Asyncness::Sync => quote!(Ok(())),
-                Asyncness::Async => quote!(Box::pin(async { Ok(()) })),
+                Asyncness::Async => quote!(async { Ok(()) }),
             }
         };
         quote! {
             #[inline]
+            #[allow(clippy::manual_async_fn)]
             #step_fn {
                 #body
             }
@@ -28,8 +31,8 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
 
     quote! {
         #[allow(unused_variables)]
-        impl #ident for narrative::environment::DummyEnvironment {
-            type Error = std::convert::Infallible;
+        impl<E: Send> #ident for narrative::environment::DummyEnvironment<E> {
+            type Error = E;
             #(#steps)*
         }
     }
@@ -53,13 +56,15 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Sync);
         let expected = quote! {
             #[allow(unused_variables)]
-            impl UserStory for narrative::environment::DummyEnvironment {
-                type Error = std::convert::Infallible;
+            impl<E: Send> UserStory for narrative::environment::DummyEnvironment<E> {
+                type Error = E;
                 #[inline]
+                #[allow(clippy::manual_async_fn)]
                 fn step1(&mut self) -> Result<(), Self::Error> {
                     Ok(())
                 }
                 #[inline]
+                #[allow(clippy::manual_async_fn)]
                 fn step2(&mut self) -> Result<(), Self::Error> {
                     Ok(())
                 }
@@ -81,15 +86,17 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Async);
         let expected = quote! {
             #[allow(unused_variables)]
-            impl AsyncUserStory for narrative::environment::DummyEnvironment {
-                type Error = std::convert::Infallible;
+            impl<E: Send> AsyncUserStory for narrative::environment::DummyEnvironment<E> {
+                type Error = E;
                 #[inline]
+                #[allow(clippy::manual_async_fn)]
                 fn step1(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send {
-                    Box::pin(async { Ok(()) })
+                    async { Ok(()) }
                 }
                 #[inline]
+                #[allow(clippy::manual_async_fn)]
                 fn step2(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send {
-                    Box::pin(async { Ok(()) })
+                    async { Ok(()) }
                 }
             }
         };
@@ -107,11 +114,12 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Sync);
         let expected = quote! {
             #[allow(unused_variables)]
-            impl StoryDef for narrative::environment::DummyEnvironment {
-                type Error = std::convert::Infallible;
+            impl<E: Send> StoryDef for narrative::environment::DummyEnvironment<E> {
+                type Error = E;
                 #[inline]
+                #[allow(clippy::manual_async_fn)]
                 fn sub_step_1(&mut self) -> Result<impl OtherStory<Error = Self::Error>, Self::Error> {
-                    Ok(narrative::environment::DummyEnvironment)
+                    Ok(narrative::environment::DummyEnvironment::<Self::Error>::default())
                 }
             }
         };
@@ -129,11 +137,12 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Async);
         let expected = quote! {
             #[allow(unused_variables)]
-            impl AsyncStoryDef for narrative::environment::DummyEnvironment {
-                type Error = std::convert::Infallible;
+            impl<E: Send> AsyncStoryDef for narrative::environment::DummyEnvironment<E> {
+                type Error = E;
                 #[inline]
+                #[allow(clippy::manual_async_fn)]
                 fn sub_step_1(&mut self) -> Result<impl AsyncOtherStory<Error = Self::Error>, Self::Error> {
-                    Ok(narrative::environment::DummyEnvironment)
+                    Ok(narrative::environment::DummyEnvironment::<Self::Error>::default())
                 }
             }
         };

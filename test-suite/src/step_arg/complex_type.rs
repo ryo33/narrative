@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use narrative::{environment::DummyEnvironment, story::RunStory};
 
 use crate::TestRunner;
@@ -13,7 +15,7 @@ trait ComplexStepType {
 
 #[test]
 fn test_complex_step_type() {
-    let mut env = DummyEnvironment;
+    let mut env = DummyEnvironment::<Infallible>::default();
     let mut runner = TestRunner::default();
     ComplexStepTypeContext
         .run_story_with_runner(&mut env, &mut runner)

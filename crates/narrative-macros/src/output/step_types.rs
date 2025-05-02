@@ -47,20 +47,19 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         .collect();
     let step_stories = steps
         .iter()
-        .map(
+        .filter_map(
             |StepSegments {
                  ident,
                  story_context,
                  ..
              }| {
-                if let Some(story_context) = story_context {
-                    quote!(Self::#ident => { Some(#story_context) })
-                } else {
-                    quote!(Self::#ident => { None as Option<StoryContext> })
-                }
+                story_context
+                    .as_ref()
+                    .map(|story_context| quote!(Self::#ident => { Some(#story_context) }))
             },
         )
         .collect::<MatchArms>()
+        .with_fallback(quote!(None))
         .cast_as(quote!(Option<StoryContext>));
 
     quote! {

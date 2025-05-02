@@ -102,8 +102,9 @@ impl<E> AsyncStoryRunner<E> for LoggingStoryRunner {
 fn test() {
     use crate::my_first_story::MyFirstStoryContext;
     use narrative::{environment::DummyEnvironment, story::RunStory};
+    use std::convert::Infallible;
     let mut runner = LoggingStoryRunner { log: vec![] };
-    let mut env = DummyEnvironment;
+    let mut env = DummyEnvironment::<Infallible>::default();
     MyFirstStoryContext
         .run_story_with_runner(&mut env, &mut runner)
         .unwrap();
@@ -124,8 +125,9 @@ fn test() {
 fn test_async() {
     use crate::async_story::MyFirstStoryContext;
     use narrative::{environment::DummyEnvironment, story::RunStoryAsync};
+    use std::convert::Infallible;
     let mut runner = LoggingStoryRunner { log: vec![] };
-    let mut env = DummyEnvironment;
+    let mut env = DummyEnvironment::<Infallible>::default();
     futures::executor::block_on(
         MyFirstStoryContext.run_story_with_runner_async(&mut env, &mut runner),
     )
@@ -148,8 +150,9 @@ fn test_sub_story() {
     use crate::sub_story::MainStoryContext;
     use narrative::{environment::DummyEnvironment, story::RunStory};
     use pretty_assertions::assert_eq;
+    use std::convert::Infallible;
     let mut runner = LoggingStoryRunner { log: vec![] };
-    let mut env = DummyEnvironment;
+    let mut env = DummyEnvironment::<Infallible>::default();
     MainStoryContext
         .run_story_with_runner(&mut env, &mut runner)
         .unwrap();
