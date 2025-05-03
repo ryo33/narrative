@@ -29,7 +29,7 @@ fn process_story(attr: StoryAttr, story: ItemStory) -> TokenStream {
     output::generate(&attr, &story)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Asyncness {
     Sync,
     Async,

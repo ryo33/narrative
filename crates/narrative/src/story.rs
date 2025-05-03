@@ -167,19 +167,19 @@ pub trait RunStoryAsync<T, S, E> {
     ) -> impl Future<Output = Result<(), E>> + Send;
 }
 
-impl<T, S, E> RunStoryAsync<T, S, E> for T
+impl<T, Env, E> RunStoryAsync<T, Env, E> for T
 where
     T: StoryContext + Copy + Send + Sync,
-    T::Step: RunAsync<S, E> + Send,
-    S: Send,
+    T::Step: RunAsync<Env, E> + Send + Sync,
+    Env: Send,
 {
-    async fn run_story_async(&self, env: &mut S) -> Result<(), E> {
+    async fn run_story_async(&self, env: &mut Env) -> Result<(), E> {
         let mut runner = DefaultStoryRunner;
         Self::run_story_with_runner_async(self, env, &mut runner).await
     }
     async fn run_story_with_runner_async(
         &self,
-        env: &mut S,
+        env: &mut Env,
         runner: &mut (impl AsyncStoryRunner<E> + Send),
     ) -> Result<(), E> {
         runner.start_story(*self)?;

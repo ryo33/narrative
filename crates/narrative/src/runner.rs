@@ -60,14 +60,14 @@ pub trait AsyncStoryRunner<E> {
     fn end_story(&mut self, story: impl StoryContext) -> Result<(), E>;
     /// Executes a step asynchronously.
     /// If you call `step.run_with_runner_async(env, self)`, the runner will be passed to the nested story if it exists.
-    fn run_step_async<T, S>(
+    fn run_step_async<T, Env>(
         &mut self,
         step: T,
-        state: &mut S,
+        state: &mut Env,
     ) -> impl Future<Output = Result<(), E>> + Send
     where
-        T: Step + RunAsync<S, E> + Send,
-        S: Send;
+        T: Step + RunAsync<Env, E> + Send + Sync,
+        Env: Send;
     /// Executes a nested story referenced by a parent step asynchronously.
     /// See [StoryRunner::run_nested_story] for more details.
     fn run_nested_story_async<S, Env>(
@@ -77,9 +77,9 @@ pub trait AsyncStoryRunner<E> {
         env: &mut Env,
     ) -> impl Future<Output = Result<(), E>> + Send
     where
-        S: StoryContext + RunStoryAsync<S, Env, E> + Send,
+        S: StoryContext + RunStoryAsync<S, Env, E> + Send + Sync,
         Env: Send,
-        S::Step: RunAsync<Env, E> + Send;
+        S::Step: RunAsync<Env, E> + Send + Sync;
 }
 
 /// The default story runner that executes steps sequentially without extra logic.
@@ -130,10 +130,10 @@ impl<E> AsyncStoryRunner<E> for DefaultStoryRunner {
     }
 
     #[inline]
-    async fn run_step_async<T, S>(&mut self, step: T, state: &mut S) -> Result<(), E>
+    async fn run_step_async<T, Env>(&mut self, step: T, state: &mut Env) -> Result<(), E>
     where
-        T: Step + RunAsync<S, E> + Send,
-        S: Send,
+        T: Step + RunAsync<Env, E> + Send + Sync,
+        Env: Send,
     {
         step.run_async(state).await
     }
@@ -146,9 +146,9 @@ impl<E> AsyncStoryRunner<E> for DefaultStoryRunner {
         env: &mut Env,
     ) -> Result<(), E>
     where
-        S: StoryContext + RunStoryAsync<S, Env, E> + Send,
+        S: StoryContext + RunStoryAsync<S, Env, E> + Send + Sync,
         Env: Send,
-        S::Step: RunAsync<Env, E> + Send,
+        S::Step: RunAsync<Env, E> + Send + Sync,
     {
         nested_story.run_story_async(env).await
     }

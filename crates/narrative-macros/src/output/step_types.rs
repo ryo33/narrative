@@ -128,7 +128,7 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
             }
         }
 
-        impl <T: #async_story_ident> narrative::step::RunAsync<T, T::Error> for Step {
+        impl <T: #async_story_ident + Send> narrative::step::RunAsync<T, T::Error> for Step {
             #[inline]
             async fn run_async(&self, story: &mut T) -> Result<(), T::Error> {
                 use narrative::runner::AsyncStoryRunner as _;

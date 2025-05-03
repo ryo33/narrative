@@ -13,6 +13,12 @@ pub(crate) fn generate(item_story: &StoryStep, asyncness: Asyncness) -> TokenStr
         .iter()
         .filter(|input| matches!(input, syn::FnArg::Typed(_)));
 
+    let bounds = if asyncness == Asyncness::Async {
+        quote!(+ Send)
+    } else {
+        quote!()
+    };
+
     // Check if this is a sub-story step
     if let Some(sub_story_path) = item_story.sub_story_path() {
         let path = sub_story_path.path();
@@ -24,7 +30,7 @@ pub(crate) fn generate(item_story: &StoryStep, asyncness: Asyncness) -> TokenStr
         };
 
         quote! {
-            fn #fn_name(&mut self #(,#inputs_tokens)*) -> Result<impl #trait_name<Error = Self::Error>, Self::Error>
+            fn #fn_name(&mut self #(,#inputs_tokens)*) -> Result<impl #trait_name<Error = Self::Error> #bounds, Self::Error>
         }
     } else {
         // Regular step function
@@ -44,6 +50,7 @@ pub(crate) fn generate(item_story: &StoryStep, asyncness: Asyncness) -> TokenStr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_generate_step_fn_blank() {
@@ -131,7 +138,7 @@ mod tests {
         };
         let actual = generate(&item_story, Asyncness::Async);
         let expected = quote! {
-            fn step_with_sub(&mut self) -> Result<impl AsyncSubStory<Error = Self::Error>, Self::Error>
+            fn step_with_sub(&mut self) -> Result<impl AsyncSubStory<Error = Self::Error> + Send, Self::Error>
         };
         assert_eq!(actual.to_string(), expected.to_string());
     }

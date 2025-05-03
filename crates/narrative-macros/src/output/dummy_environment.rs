@@ -8,6 +8,10 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         Asyncness::Sync => input.ident.clone(),
         Asyncness::Async => format_ident!("Async{}", input.ident),
     };
+    let generics = match asyncness {
+        Asyncness::Sync => quote!(<E>),
+        Asyncness::Async => quote!(<E: Send>),
+    };
     let steps = input.steps().map(|step| {
         let step_fn = step_fn::generate(step, asyncness);
         let body = if step.has_sub_story() {
@@ -31,7 +35,7 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
 
     quote! {
         #[allow(unused_variables)]
-        impl<E: Send> #ident for narrative::environment::DummyEnvironment<E> {
+        impl #generics #ident for narrative::environment::DummyEnvironment<E> {
             type Error = E;
             #(#steps)*
         }
@@ -56,7 +60,7 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Sync);
         let expected = quote! {
             #[allow(unused_variables)]
-            impl<E: Send> UserStory for narrative::environment::DummyEnvironment<E> {
+            impl<E> UserStory for narrative::environment::DummyEnvironment<E> {
                 type Error = E;
                 #[inline]
                 #[allow(clippy::manual_async_fn)]
@@ -114,7 +118,7 @@ mod tests {
         let actual = generate(&story_syntax, Asyncness::Sync);
         let expected = quote! {
             #[allow(unused_variables)]
-            impl<E: Send> StoryDef for narrative::environment::DummyEnvironment<E> {
+            impl<E> StoryDef for narrative::environment::DummyEnvironment<E> {
                 type Error = E;
                 #[inline]
                 #[allow(clippy::manual_async_fn)]
@@ -141,7 +145,7 @@ mod tests {
                 type Error = E;
                 #[inline]
                 #[allow(clippy::manual_async_fn)]
-                fn sub_step_1(&mut self) -> Result<impl AsyncOtherStory<Error = Self::Error>, Self::Error> {
+                fn sub_step_1(&mut self) -> Result<impl AsyncOtherStory<Error = Self::Error> + Send, Self::Error> {
                     Ok(narrative::environment::DummyEnvironment::<Self::Error>::default())
                 }
             }
