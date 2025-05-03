@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 
 use crate::{
     item_story::{story_const::StoryConst, ItemStory, StoryStep},
@@ -20,17 +20,25 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         .iter()
         .map(
             |StepSegments {
-                 ident, step_text, ..
-             }| quote!(Self::#ident => { #step_text }),
+                 ident, mod_ident, ..
+             }| quote!(Self::#ident => steps::#mod_ident::step_text(),),
         )
         .collect();
     let step_idents: MatchArms = steps
         .iter()
-        .map(|StepSegments { ident, idents, .. }| quote!(Self::#ident => { #idents }))
+        .map(
+            |StepSegments {
+                 ident, mod_ident, ..
+             }| quote!(Self::#ident => steps::#mod_ident::__STEP_ID,),
+        )
         .collect();
     let step_args = steps
         .iter()
-        .map(|StepSegments { ident, args, .. }| quote!(Self::#ident => { #args }))
+        .map(
+            |StepSegments {
+                 ident, mod_ident, ..
+             }| quote!(Self::#ident => steps::#mod_ident::__ARGS.iter().copied(),),
+        )
         .collect::<MatchArms>()
         .cast_as(quote!(std::iter::Empty<StepArg>));
     let step_runs: MatchArms = steps
@@ -47,22 +55,32 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         .collect();
     let step_stories = steps
         .iter()
-        .filter_map(
+        .map(
             |StepSegments {
-                 ident,
-                 story_context,
-                 ..
-             }| {
-                story_context
-                    .as_ref()
-                    .map(|story_context| quote!(Self::#ident => { Some(#story_context) }))
-            },
+                 ident, mod_ident, ..
+             }| quote!(Self::#ident => steps::#mod_ident::dyn_nested_story(),),
         )
         .collect::<MatchArms>()
-        .with_fallback(quote!(None))
-        .cast_as(quote!(Option<StoryContext>));
+        .cast_as(quote!(Option<narrative::story::DynStoryContext>));
+    let to_dyn_arms = steps
+        .iter()
+        .map(
+            |StepSegments {
+                 ident, mod_ident, ..
+             }| quote!(Self::#ident => steps::#mod_ident::DYN_STEP,),
+        )
+        .collect::<MatchArms>();
+    let steps_def = steps
+        .iter()
+        .map(|StepSegments { step_def, .. }| step_def)
+        .collect::<Vec<_>>();
 
     quote! {
+        mod steps {
+            use super::*;
+            #(#steps_def)*
+        }
+
         #[derive(Clone, Copy)]
         #[allow(non_camel_case_types)]
         pub enum Step {
@@ -86,8 +104,13 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
                 StoryContext::default()
             }
             #[inline]
-            fn nested_story(&self) -> Option<impl narrative::story::StoryContext + 'static> {
+            fn nested_story(&self) -> Option<impl narrative::story::StoryContext + Send + 'static> {
                 #step_stories
+            }
+        }
+        impl Step {
+            pub fn to_dyn(&self) -> narrative::step::DynStep {
+                #to_dyn_arms
             }
         }
 
@@ -123,12 +146,45 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
 
 pub struct StepSegments<'a> {
     ident: &'a syn::Ident,
+    mod_ident: syn::Ident,
     run: TokenStream,
     run_async: TokenStream,
+    step_def: StepDef,
+}
+
+pub struct StepDef {
+    mod_ident: syn::Ident,
     step_text: TokenStream,
+    step_id: TokenStream,
     args: TokenStream,
-    idents: TokenStream,
-    story_context: Option<syn::Path>,
+    story: TokenStream,
+    nested_story: TokenStream,
+    dyn_step: TokenStream,
+}
+
+impl ToTokens for StepDef {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let StepDef {
+            mod_ident,
+            step_text,
+            step_id,
+            args,
+            story,
+            nested_story,
+            dyn_step,
+        } = &self;
+        tokens.extend(quote! {
+            pub mod #mod_ident {
+                use super::*;
+                #step_text
+                #step_id
+                #args
+                #story
+                #nested_story
+                #dyn_step
+            }
+        });
+    }
 }
 
 fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<'a> {
@@ -191,6 +247,23 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         });
     let args: Vec<_> = step.fn_args().map(|(ident, _)| ident).collect();
 
+    let nested_story = if let Some(sub_story_path) = step.sub_story_path() {
+        let context_path = &sub_story_path.context_path();
+        quote! {
+            pub fn nested_story() -> #context_path {
+                #context_path::default()
+            }
+            pub fn dyn_nested_story() -> Option<narrative::story::DynStoryContext> {
+                Some(nested_story().to_dyn())
+            }
+        }
+    } else {
+        quote! {
+            pub fn dyn_nested_story() -> Option<narrative::story::DynStoryContext> {
+                None
+            }
+        }
+    };
     let (run, run_async) = if step.has_sub_story() {
         (
             quote! {
@@ -225,22 +298,48 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
         )
     };
 
-    let story_context = step.sub_story_path().map(|path| path.context_path());
     let args_len = args.len();
+    let dyn_args = if args.is_empty() {
+        quote!(Box::new(std::iter::empty()))
+    } else {
+        quote!(Box::new(__ARGS.iter().map(|arg| arg.to_dyn())))
+    };
+
+    let ident = &step.inner.sig.ident;
+    let mod_ident = format_ident!("mod_{}", ident);
+
+    let step_def = StepDef {
+        mod_ident: mod_ident.clone(),
+        step_text: quote! {
+            pub fn step_text() -> String {
+                format!(#step_text #(#format_args)*)
+            }
+        },
+        step_id: quote!(
+            pub const __STEP_ID: &str = stringify!(#step_name);
+        ),
+        args: quote!(pub const __ARGS: [StepArg; #args_len] = [#(StepArg(StepArgInner::#step_name(args::#step_name::#args))),*];),
+        story: quote!(
+            pub const __STORY: StoryContext = StoryContext;
+        ),
+        nested_story,
+        dyn_step: quote! {
+            pub const DYN_STEP: narrative::step::DynStep = narrative::step::DynStep::new(
+                step_text,
+                __STEP_ID,
+                || #dyn_args,
+                || __STORY.to_dyn(),
+                dyn_nested_story,
+            );
+        },
+    };
+
     StepSegments {
-        ident: &step.inner.sig.ident,
+        ident,
+        mod_ident,
         run,
         run_async,
-        step_text: quote! {
-            format!(#step_text #(#format_args)*)
-        },
-        idents: quote! {
-            stringify!(#step_name)
-        },
-        args: quote! {
-            ([#(StepArg(StepArgInner::#step_name(args::#step_name::#args))),*] as [StepArg; #args_len]).iter().copied()
-        },
-        story_context,
+        step_def,
     }
 }
 
@@ -278,23 +377,25 @@ mod tests {
             .to_string()
         );
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("Step 1")
+                pub fn step_text() -> String {
+                    format!("Step 1")
+                }
             }
             .to_string()
         );
         assert_eq!(
-            actual.idents.to_string(),
+            actual.step_def.step_id.to_string(),
             quote! {
-                stringify!(my_step1)
+                pub const __STEP_ID: &str = stringify!(my_step1);
             }
             .to_string()
         );
         assert_eq!(
-            actual.args.to_string(),
+            actual.step_def.args.to_string(),
             quote! {
-                ([] as [StepArg; 0usize]).iter().copied()
+                pub const __ARGS: [StepArg; 0usize] = [];
             }
             .to_string()
         );
@@ -329,16 +430,18 @@ mod tests {
             .to_string()
         );
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("Step 1: {name}", name = "ryo")
+                pub fn step_text() -> String {
+                    format!("Step 1: {name}", name = "ryo")
+                }
             }
             .to_string()
         );
         assert_eq!(
-            actual.args.to_string(),
+            actual.step_def.args.to_string(),
             quote! {
-                ([StepArg(StepArgInner::my_step1(args::my_step1::name))] as [StepArg; 1usize]).iter().copied()
+                pub const __ARGS: [StepArg; 1usize] = [StepArg(StepArgInner::my_step1(args::my_step1::name))];
             }
             .to_string()
         );
@@ -376,16 +479,18 @@ mod tests {
             .to_string()
         );
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("Step 1: {name}", name = "ryo")
+                pub fn step_text() -> String {
+                    format!("Step 1: {name}", name = "ryo")
+                }
             }
             .to_string()
         );
         assert_eq!(
-            actual.args.to_string(),
+            actual.step_def.args.to_string(),
             quote! {
-                ([StepArg(StepArgInner::my_step1(args::my_step1::name))] as [StepArg; 1usize]).iter().copied()
+                pub const __ARGS: [StepArg; 1usize] = [StepArg(StepArgInner::my_step1(args::my_step1::name))];
             }
             .to_string()
         );
@@ -436,9 +541,11 @@ mod tests {
         };
         let actual = generate_step(&story_syntax, &step);
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("Step 1: {name}", name = "ryo")
+                pub fn step_text() -> String {
+                    format!("Step 1: {name}", name = "ryo")
+                }
             }
             .to_string()
         );
@@ -458,9 +565,11 @@ mod tests {
         };
         let actual = generate_step(&story_syntax, &step);
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("Step 1: {name} {age}", name = "ryo")
+                pub fn step_text() -> String {
+                    format!("Step 1: {name} {age}", name = "ryo")
+                }
             }
             .to_string()
         );
@@ -479,9 +588,11 @@ mod tests {
         };
         let actual = generate_step(&story_syntax, &step);
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("Step 1: {name:?}", name = "ryo")
+                pub fn step_text() -> String {
+                    format!("Step 1: {name:?}", name = "ryo")
+                }
             }
             .to_string()
         );
@@ -523,9 +634,25 @@ mod tests {
         );
 
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("run sub story")
+                pub fn step_text() -> String {
+                    format!("run sub story")
+                }
+            }
+            .to_string()
+        );
+
+        // Test nested_story field for sub-story
+        assert_eq!(
+            actual.step_def.nested_story.to_string(),
+            quote! {
+                pub fn nested_story() -> SubStoryContext {
+                    SubStoryContext::default()
+                }
+                pub fn dyn_nested_story() -> Option<narrative::story::DynStoryContext> {
+                    Some(nested_story().to_dyn())
+                }
             }
             .to_string()
         );
@@ -569,9 +696,19 @@ mod tests {
         );
 
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("run sub story with {param}", param = 42)
+                pub fn step_text() -> String {
+                    format!("run sub story with {param}", param = 42)
+                }
+            }
+            .to_string()
+        );
+
+        assert_eq!(
+            actual.step_def.args.to_string(),
+            quote! {
+                pub const __ARGS: [StepArg; 1usize] = [StepArg(StepArgInner::run_sub(args::run_sub::param))];
             }
             .to_string()
         );
@@ -631,9 +768,11 @@ mod tests {
 
         // Step attribute value should override global constant in format args
         assert_eq!(
-            actual.step_text.to_string(),
+            actual.step_def.step_text.to_string(),
             quote! {
-                format!("Step 1: {name}", name = "override")
+                pub fn step_text() -> String {
+                    format!("Step 1: {name}", name = "override")
+                }
             }
             .to_string()
         );

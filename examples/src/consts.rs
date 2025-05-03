@@ -1,7 +1,7 @@
 #[narrative::story("Consts")]
 trait Consts {
-    const NAME: &'static str = "Ryo";
-    const ID: &'static str = "ryo33";
+    const NAME: &str = "Ryo";
+    const ID: &str = "ryo33";
     #[step("dummy", name = NAME)]
     fn dummy_step(name: &str);
 
@@ -24,17 +24,17 @@ fn accessible_through_context() {
     assert_eq!(steps.len(), 3);
     assert_eq!(steps[0].args().count(), 1);
     let arg = steps[0].args().next().unwrap();
-    assert_eq!(arg.debug_value(), r#""Ryo""#);
-    assert_eq!(
-        serde_json::to_value(arg.serialize_value()).unwrap(),
-        json!("Ryo")
-    );
+    assert_eq!(format!("{:?}", arg.value()), r#""Ryo""#);
+    assert_eq!(serde_json::to_value(arg.value()).unwrap(), json!("Ryo"));
 
     assert_eq!(steps[1].args().count(), 1);
     let arg = steps[1].args().next().unwrap();
-    assert_eq!(arg.debug_value(), r#""https://example.com/ryo33""#);
     assert_eq!(
-        serde_json::to_value(arg.serialize_value()).unwrap(),
+        format!("{:?}", arg.value()),
+        r#""https://example.com/ryo33""#
+    );
+    assert_eq!(
+        serde_json::to_value(arg.value()).unwrap(),
         json!("https://example.com/ryo33")
     );
 

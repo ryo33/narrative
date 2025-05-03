@@ -23,6 +23,7 @@ syn = { version = "2", features = [
 	"visit",
 	"visit-mut",
 ] }
+prettyplease = "0.2"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

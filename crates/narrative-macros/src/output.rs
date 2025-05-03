@@ -104,11 +104,6 @@ impl MatchArms {
         self.match_target = Some(match_target);
         self
     }
-
-    pub fn with_fallback(mut self, fallback: TokenStream) -> Self {
-        self.fallback = Some(fallback);
-        self
-    }
 }
 impl FromIterator<TokenStream> for MatchArms {
     fn from_iter<T: IntoIterator<Item = TokenStream>>(iter: T) -> Self {

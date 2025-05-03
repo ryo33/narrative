@@ -167,11 +167,11 @@ fn test_sub_story() {
             "Running step: sub_step_2",
             "Ending story: This is a sub story",
             "Running step: do sub story with args",
-            "Starting nested story: do sub story with args; This is a sub story",
-            "Starting story: This is a sub story",
-            "Running step: sub_step_1",
-            "Running step: sub_step_2",
-            "Ending story: This is a sub story",
+            "Starting nested story: do sub story with args; This is a sub story 2",
+            "Starting story: This is a sub story 2",
+            "Running step: sub_step_3",
+            "Running step: sub_step_4",
+            "Ending story: This is a sub story 2",
             "Ending story: This is a main story",
         ]
     );

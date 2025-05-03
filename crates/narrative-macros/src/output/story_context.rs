@@ -34,33 +34,57 @@ pub(crate) fn generate(attr: &StoryAttr, input: &ItemStory) -> TokenStream {
             })
         },
     );
+    let steps_len = input.steps().count();
     let const_len = input.consts().count();
+    let dyn_consts = if const_len == 0 {
+        quote!(Box::new(std::iter::empty()))
+    } else {
+        quote!(Box::new(__CONSTS.into_iter().map(|c| c.to_dyn())))
+    };
+    let dyn_steps = if steps_len == 0 {
+        quote!(Box::new(std::iter::empty()))
+    } else {
+        quote!(Box::new(__STEPS.into_iter().map(|s| s.to_dyn())))
+    };
     quote! {
         #[derive(Default, Clone, Copy)]
         pub struct StoryContext;
+        pub const __STORY_TITLE: &str = #title;
+        pub const __STORY_ID: &str = stringify!(#ident);
+        pub const __STEPS: [Step; #steps_len] = [#(Step::#step_names),*];
+        pub const __CONSTS: [StoryConst; #const_len] = [#(StoryConst::#consts),*];
         impl StoryContext {
             #(#consts_defs)*
             #(#steps)*
+
+            pub fn to_dyn(&self) -> narrative::story::DynStoryContext {
+                narrative::story::DynStoryContext::new(
+                    __STORY_TITLE,
+                    __STORY_ID,
+                    || #dyn_consts,
+                    || #dyn_steps,
+                )
+            }
         }
         impl narrative::story::StoryContext for StoryContext {
             type Step = Step;
 
             #[inline]
             fn story_title(&self) -> String {
-                #title.to_string()
+                __STORY_TITLE.to_string()
             }
             #[inline]
             fn story_id(&self) -> &'static str {
-                stringify!(#ident)
+                __STORY_ID
             }
             #[inline]
             fn steps(&self) -> impl Iterator<Item = Self::Step> + 'static + Send {
-                [#(Step::#step_names),*].into_iter()
+                __STEPS.into_iter()
             }
             #[inline]
             fn consts(&self) -> impl Iterator<Item = impl narrative::story::StoryConst + 'static> + 'static
             {
-                ([#(StoryConst::#consts),*] as [StoryConst; #const_len]).into_iter()
+                __CONSTS.into_iter()
             }
         }
     }
@@ -126,6 +150,10 @@ mod tests {
         let expected = quote! {
             #[derive(Default, Clone, Copy)]
             pub struct StoryContext;
+            pub const __STORY_TITLE: &str = "Story Title";
+            pub const __STORY_ID: &str = stringify!(UserStory);
+            pub const __STEPS: [Step; 2usize] = [Step::step1, Step::step2];
+            pub const __CONSTS: [StoryConst; 2usize] = [StoryConst::NAME, StoryConst::AGE];
             impl StoryContext {
                 pub const NAME: &str = "Ryo";
                 pub const AGE: u32 = 20;
@@ -138,25 +166,35 @@ mod tests {
                 pub fn step2(&self) -> Step {
                     Step::step2
                 }
+
+                pub fn to_dyn(&self) -> narrative::story::DynStoryContext {
+                    narrative::story::DynStoryContext::new(
+                        __STORY_TITLE,
+                        __STORY_ID,
+                        || Box::new(__CONSTS.into_iter().map(|c| c.to_dyn())),
+                        || Box::new(__STEPS.into_iter().map(|s| s.to_dyn())),
+                    )
+                }
             }
             impl narrative::story::StoryContext for StoryContext {
                 type Step = Step;
 
                 #[inline]
                 fn story_title(&self) -> String {
-                    "Story Title".to_string()
+                    __STORY_TITLE.to_string()
                 }
                 #[inline]
                 fn story_id(&self) -> &'static str {
-                    stringify!(UserStory)
+                    __STORY_ID
                 }
                 #[inline]
                 fn steps(&self) -> impl Iterator<Item = Self::Step> + 'static + Send {
-                    [Step::step1, Step::step2].into_iter()
+                    __STEPS.into_iter()
                 }
                 #[inline]
-                fn consts(&self) -> impl Iterator<Item = impl narrative::story::StoryConst + 'static> + 'static {
-                    ([StoryConst::NAME, StoryConst::AGE] as [StoryConst; 2usize]).into_iter()
+                fn consts(&self) -> impl Iterator<Item = impl narrative::story::StoryConst + 'static> + 'static
+                {
+                    __CONSTS.into_iter()
                 }
             }
         };

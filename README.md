@@ -220,8 +220,8 @@ fn execute_story(context: impl narrative::StoryContext) {
         send_to_external_process(step.text(), step.arguments().map(|arg| Argument {
                 name: arg.name(),
                 ty: arg.ty(),
-                debug: arg.debug(),
-                json: step.serialize(serde_json::value::Serializer).unwrap(),
+                debug: format!("{:?}", arg.value()),
+                json: serde_json::to_string(&arg.value()).unwrap(),
         }));
     }
 }

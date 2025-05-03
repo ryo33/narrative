@@ -1,4 +1,5 @@
 mod async_story;
+mod async_sub_story;
 mod chain;
 mod consts;
 mod empty_story;

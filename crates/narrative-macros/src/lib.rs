@@ -64,3 +64,55 @@ pub(crate) fn collect_format_args(lit_str: &syn::LitStr) -> Vec<String> {
         .map(ToOwned::to_owned)
         .collect()
 }
+
+struct MakeStaticWalker;
+
+impl syn::visit_mut::VisitMut for MakeStaticWalker {
+    fn visit_type_reference_mut(&mut self, i: &mut syn::TypeReference) {
+        i.lifetime = Some(syn::Lifetime::new(
+            "'static",
+            proc_macro2::Span::mixed_site(),
+        ));
+        self.visit_type_mut(&mut i.elem);
+    }
+}
+
+pub(crate) fn make_static(ty: &syn::Type) -> syn::Type {
+    use syn::visit_mut::VisitMut;
+    let mut walker = MakeStaticWalker;
+    let mut static_ty = ty.clone();
+    walker.visit_type_mut(&mut static_ty);
+    static_ty
+}
+
+pub(crate) fn pretty_print_expr(expr: &syn::Expr) -> String {
+    prettyplease::unparse(
+        &syn::parse_file(
+            &quote::quote! {
+                const IDENT: String = #expr;
+            }
+            .to_string(),
+        )
+        .unwrap(),
+    )
+    .replace("const IDENT: String = ", "")
+    .replace(";", "")
+    .trim()
+    .to_string()
+}
+
+pub(crate) fn pretty_print_type(ty: &syn::Type) -> String {
+    prettyplease::unparse(
+        &syn::parse_file(
+            &quote::quote! {
+                const IDENT: #ty = 1;
+            }
+            .to_string(),
+        )
+        .unwrap(),
+    )
+    .replace("const IDENT: ", "")
+    .replace(" = 1;", "")
+    .trim()
+    .to_string()
+}

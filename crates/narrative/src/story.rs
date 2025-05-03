@@ -3,11 +3,12 @@ use std::future::Future;
 use crate::{
     runner::{AsyncStoryRunner, DefaultStoryRunner, StoryRunner},
     step::{DynStep, Run, RunAsync, Step},
+    value::{BoxedValue, Value},
 };
 
 /// A trait for handing a story in general.
 // `&self` is not actually used, and is for future compatibility and friendly API.
-pub trait StoryContext: Sized {
+pub trait StoryContext {
     type Step: Step + 'static;
     /// Returns the title of the story.
     fn story_title(&self) -> String;
@@ -25,86 +26,102 @@ pub trait StoryConst: Clone + std::fmt::Debug {
     fn ty(&self) -> &'static str;
     /// Returns the real expression of the constant value.
     fn expr(&self) -> &'static str;
-    /// Returns the debug representation of the value.
-    fn debug_value(&self) -> String;
-    /// Returns the value for serialization.
-    fn serialize_value(&self) -> impl serde::Serialize + 'static;
+    /// Returns the value of the constant.
+    fn value(&self) -> impl Value;
 }
 
-/// A boxed trait object for [StoryContext].
-pub type BoxedStoryContext = Box<dyn DynStoryContext>;
-
-mod private {
-    pub trait SealedDynStoryContext {}
-    pub trait SealedDynStoryConst {}
+#[derive(Clone, Copy)]
+pub struct DynStoryContext {
+    story_title: &'static str,
+    story_id: &'static str,
+    consts: fn() -> Box<dyn Iterator<Item = DynStoryConst> + Send>,
+    steps: fn() -> Box<dyn Iterator<Item = DynStep> + Send>,
 }
 
-/// A trait object for [StoryContext].
-pub trait DynStoryContext: private::SealedDynStoryContext {
-    /// Returns the title of the story.
-    fn story_title(&self) -> String;
-    /// Returns the identifier of the story.
-    fn story_id(&self) -> &'static str;
-    /// Returns the constants of the story.
-    fn consts(&self) -> Box<dyn Iterator<Item = Box<dyn DynStoryConst>>>;
-    /// Returns the steps of the story.
-    fn steps(&self) -> Box<dyn Iterator<Item = Box<dyn DynStep>>>;
+impl DynStoryContext {
+    pub const fn new(
+        story_title: &'static str,
+        story_id: &'static str,
+        consts: fn() -> Box<dyn Iterator<Item = DynStoryConst> + Send>,
+        steps: fn() -> Box<dyn Iterator<Item = DynStep> + Send>,
+    ) -> Self {
+        Self {
+            story_title,
+            story_id,
+            consts,
+            steps,
+        }
+    }
 }
 
-/// A trait object for [StoryConst].
-pub trait DynStoryConst: private::SealedDynStoryConst {
-    /// Returns the name of the constant value.
-    fn name(&self) -> &'static str;
-    /// Returns the type of the constant value.
-    fn ty(&self) -> &'static str;
-    /// Returns the real expression of the constant value.
-    fn expr(&self) -> &'static str;
-    /// Returns the debug representation of the value.
-    fn debug_value(&self) -> String;
-    /// Returns the value for serialization.
-    fn serialize_value(&self) -> Box<dyn erased_serde::Serialize>;
+#[derive(Clone, Copy)]
+pub struct DynStoryConst {
+    name: &'static str,
+    ty: &'static str,
+    expr: &'static str,
+    value: fn() -> BoxedValue,
+    obj_value: fn() -> BoxedValue,
 }
 
-impl<T: StoryContext> private::SealedDynStoryContext for T {}
-impl<T: StoryConst> private::SealedDynStoryConst for T {}
+impl DynStoryConst {
+    pub const fn new(
+        name: &'static str,
+        ty: &'static str,
+        expr: &'static str,
+        value: fn() -> BoxedValue,
+        obj_value: fn() -> BoxedValue,
+    ) -> Self {
+        Self {
+            name,
+            ty,
+            expr,
+            value,
+            obj_value,
+        }
+    }
+}
 
-impl<T: StoryContext + private::SealedDynStoryContext> DynStoryContext for T {
+impl std::fmt::Debug for DynStoryConst {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        (self.obj_value)().fmt(f)
+    }
+}
+
+impl StoryContext for DynStoryContext {
+    type Step = DynStep;
+
     fn story_title(&self) -> String {
-        StoryContext::story_title(self)
+        self.story_title.to_string()
     }
 
     fn story_id(&self) -> &'static str {
-        StoryContext::story_id(self)
+        self.story_id
     }
 
-    fn consts(&self) -> Box<dyn Iterator<Item = Box<dyn DynStoryConst>>> {
-        Box::new(StoryContext::consts(self).map(|c| Box::new(c) as Box<dyn DynStoryConst>))
+    fn consts(&self) -> impl Iterator<Item = impl StoryConst + Send + 'static> + Send + 'static {
+        (self.consts)()
     }
 
-    fn steps(&self) -> Box<dyn Iterator<Item = Box<dyn DynStep>>> {
-        Box::new(StoryContext::steps(self).map(|s| Box::new(s) as Box<dyn DynStep>))
+    fn steps(&self) -> impl Iterator<Item = Self::Step> + Send + 'static {
+        (self.steps)()
     }
 }
 
-impl<T: StoryConst + private::SealedDynStoryConst> DynStoryConst for T {
+impl StoryConst for DynStoryConst {
     fn name(&self) -> &'static str {
-        StoryConst::name(self)
+        self.name
     }
 
     fn ty(&self) -> &'static str {
-        StoryConst::ty(self)
+        self.ty
     }
 
     fn expr(&self) -> &'static str {
-        StoryConst::expr(self)
+        self.expr
     }
 
-    fn debug_value(&self) -> String {
-        StoryConst::debug_value(self)
-    }
-
-    fn serialize_value(&self) -> Box<dyn erased_serde::Serialize> {
-        Box::new(StoryConst::serialize_value(self))
+    fn value(&self) -> impl Value {
+        (self.value)()
     }
 }
 

@@ -30,29 +30,29 @@ struct SubStoryImpl<'a> {
     arg: Option<i32>,
 }
 
-impl SubStory for SubStoryImpl<'_> {
+impl AsyncSubStory for SubStoryImpl<'_> {
     type Error = Infallible;
 
-    fn sub_step_1(&mut self) -> Result<(), Self::Error> {
+    async fn sub_step_1(&mut self) -> Result<(), Self::Error> {
         self.state.push(format!("sub_step_1: {:?}", self.arg));
         Ok(())
     }
 
-    fn sub_step_2(&mut self) -> Result<(), Self::Error> {
+    async fn sub_step_2(&mut self) -> Result<(), Self::Error> {
         self.state.push(format!("sub_step_2: {:?}", self.arg));
         Ok(())
     }
 }
 
-impl SubStory2 for SubStoryImpl<'_> {
+impl AsyncSubStory2 for SubStoryImpl<'_> {
     type Error = Infallible;
 
-    fn sub_step_3(&mut self) -> Result<(), Self::Error> {
+    async fn sub_step_3(&mut self) -> Result<(), Self::Error> {
         self.state.push(format!("sub_step_3: {:?}", self.arg));
         Ok(())
     }
 
-    fn sub_step_4(&mut self) -> Result<(), Self::Error> {
+    async fn sub_step_4(&mut self) -> Result<(), Self::Error> {
         self.state.push(format!("sub_step_4: {:?}", self.arg));
         Ok(())
     }
@@ -63,10 +63,10 @@ struct MainStoryImpl {
     state: Vec<String>,
 }
 
-impl MainStory for MainStoryImpl {
+impl AsyncMainStory for MainStoryImpl {
     type Error = Infallible;
 
-    fn main_step_1(&mut self) -> Result<impl SubStory<Error = Self::Error>, Self::Error> {
+    fn main_step_1(&mut self) -> Result<impl AsyncSubStory<Error = Self::Error>, Self::Error> {
         Ok(SubStoryImpl {
             state: &mut self.state,
             arg: None,
@@ -76,7 +76,7 @@ impl MainStory for MainStoryImpl {
     fn main_step_2(
         &mut self,
         arg: i32,
-    ) -> Result<impl SubStory2<Error = Self::Error>, Self::Error> {
+    ) -> Result<impl AsyncSubStory2<Error = Self::Error>, Self::Error> {
         Ok(SubStoryImpl {
             state: &mut self.state,
             arg: Some(arg),
@@ -85,10 +85,10 @@ impl MainStory for MainStoryImpl {
 }
 
 #[test]
-fn test() {
-    use narrative::story::RunStory as _;
+fn test_async() {
+    use narrative::story::RunStoryAsync as _;
     let mut env = MainStoryImpl { state: vec![] };
-    MainStoryContext.run_story(&mut env).unwrap();
+    futures::executor::block_on(MainStoryContext.run_story_async(&mut env)).unwrap();
     assert_eq!(
         env.state,
         vec![

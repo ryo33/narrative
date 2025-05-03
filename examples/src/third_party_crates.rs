@@ -53,3 +53,16 @@ fn test_third_party_crates() {
         ]
     );
 }
+
+#[test]
+fn test_path() {
+    use narrative::prelude::*;
+    let steps = ThirdPartyCratesContext.steps().collect::<Vec<_>>();
+    assert_eq!(steps.len(), 3);
+    let args = steps[0].args().collect::<Vec<_>>();
+    assert_eq!(args.len(), 1);
+    assert_eq!(
+        format!("{:?}", args[0]),
+        r#"uuid: uuid::Uuid = "14f95cf3-4302-4e59-9b49-e40cdc4c6ba3".parse().unwrap()"#
+    );
+}

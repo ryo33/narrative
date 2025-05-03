@@ -12,7 +12,7 @@ trait SubHelloWorld {
 
 #[narrative::story("Say hello world")]
 trait HelloWorld {
-    const A: &'static str = "a";
+    const A: &str = "a";
     #[step("Say hello")]
     fn say_hello();
     #[step("Say world")]
@@ -23,7 +23,7 @@ trait HelloWorld {
 
 #[narrative::story("Say hello world 2")]
 trait HelloWorld2 {
-    const A: &'static str = "a";
+    const A: &str = "a";
     #[step("Say hello")]
     fn say_hello();
     #[step("Say world")]
@@ -34,7 +34,7 @@ trait HelloWorld2 {
 
 #[narrative::story("Say hello world 3")]
 trait HelloWorld3 {
-    const A: &'static str = "a";
+    const A: &str = "a";
     #[step("Say hello")]
     fn say_hello();
     #[step("Say world")]

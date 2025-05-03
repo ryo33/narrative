@@ -7,6 +7,7 @@ mod format_args_variants;
 mod multiple_stories_in_one_file;
 mod step_arg;
 mod story_consts;
+mod sub_story_from_other_module;
 
 #[derive(Default)]
 pub struct TestRunner {
