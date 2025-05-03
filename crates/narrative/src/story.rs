@@ -14,9 +14,11 @@ pub trait StoryContext {
     fn story_title(&self) -> String;
     /// Returns the identifier of the story.
     fn story_id(&self) -> &'static str;
-    fn consts(&self) -> impl Iterator<Item = impl StoryConst + Send + 'static> + Send + 'static;
+    fn consts(
+        &self,
+    ) -> impl Iterator<Item = impl StoryConst + Send + Sync + 'static> + Send + Sync + 'static;
     /// Returns the steps of the story.
-    fn steps(&self) -> impl Iterator<Item = Self::Step> + Send + 'static;
+    fn steps(&self) -> impl Iterator<Item = Self::Step> + Send + Sync + 'static;
 }
 
 pub trait StoryConst: Clone + std::fmt::Debug {
@@ -34,16 +36,16 @@ pub trait StoryConst: Clone + std::fmt::Debug {
 pub struct DynStoryContext {
     story_title: &'static str,
     story_id: &'static str,
-    consts: fn() -> Box<dyn Iterator<Item = DynStoryConst> + Send>,
-    steps: fn() -> Box<dyn Iterator<Item = DynStep> + Send>,
+    consts: fn() -> Box<dyn Iterator<Item = DynStoryConst> + Send + Sync>,
+    steps: fn() -> Box<dyn Iterator<Item = DynStep> + Send + Sync>,
 }
 
 impl DynStoryContext {
     pub const fn new(
         story_title: &'static str,
         story_id: &'static str,
-        consts: fn() -> Box<dyn Iterator<Item = DynStoryConst> + Send>,
-        steps: fn() -> Box<dyn Iterator<Item = DynStep> + Send>,
+        consts: fn() -> Box<dyn Iterator<Item = DynStoryConst> + Send + Sync>,
+        steps: fn() -> Box<dyn Iterator<Item = DynStep> + Send + Sync>,
     ) -> Self {
         Self {
             story_title,
@@ -98,11 +100,13 @@ impl StoryContext for DynStoryContext {
         self.story_id
     }
 
-    fn consts(&self) -> impl Iterator<Item = impl StoryConst + Send + 'static> + Send + 'static {
+    fn consts(
+        &self,
+    ) -> impl Iterator<Item = impl StoryConst + Send + Sync + 'static> + Send + Sync + 'static {
         (self.consts)()
     }
 
-    fn steps(&self) -> impl Iterator<Item = Self::Step> + Send + 'static {
+    fn steps(&self) -> impl Iterator<Item = Self::Step> + Send + Sync + 'static {
         (self.steps)()
     }
 }

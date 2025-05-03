@@ -78,12 +78,12 @@ impl<E> AsyncStoryRunner<E> for LoggingStoryRunner {
         })
     }
 
-    fn run_nested_story_async<S, Env>(
+    async fn run_nested_story_async<S, Env>(
         &mut self,
         step: impl Step + Send,
         nested_story: S,
         env: &mut Env,
-    ) -> impl std::future::Future<Output = Result<(), E>> + Send
+    ) -> Result<(), E>
     where
         S: StoryContext + RunStoryAsync<S, Env, E> + Send,
         Env: Send,
@@ -94,7 +94,7 @@ impl<E> AsyncStoryRunner<E> for LoggingStoryRunner {
             step.step_text(),
             nested_story.story_title(),
         ));
-        Box::pin(async move { nested_story.run_story_async(env).await })
+        nested_story.run_story_async(env).await
     }
 }
 

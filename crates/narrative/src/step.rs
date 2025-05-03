@@ -11,11 +11,13 @@ pub trait Step {
     /// Returns the id, which is the method name, of the step.
     fn step_id(&self) -> &'static str;
     /// Returns the arguments of the step.
-    fn args(&self) -> impl Iterator<Item = impl StepArg + Send + 'static> + Send + 'static;
+    fn args(
+        &self,
+    ) -> impl Iterator<Item = impl StepArg + Send + Sync + 'static> + Send + Sync + 'static;
     /// Returns the parent story of the step.
-    fn story(&self) -> impl StoryContext<Step = Self> + Send + 'static;
+    fn story(&self) -> impl StoryContext<Step = Self> + Send + Sync + 'static;
     /// Returns the sub story that this step references.
-    fn nested_story(&self) -> Option<impl StoryContext + Send + 'static>;
+    fn nested_story(&self) -> Option<impl StoryContext + Send + Sync + 'static>;
 }
 
 pub trait Run<T, E>: Step {
@@ -52,7 +54,7 @@ pub trait StepArg: Clone + std::fmt::Debug {
 pub struct DynStep {
     step_text: fn() -> String,
     step_id: &'static str,
-    args: fn() -> Box<dyn Iterator<Item = DynStepArg> + Send>,
+    args: fn() -> Box<dyn Iterator<Item = DynStepArg> + Send + Sync>,
     story: fn() -> DynStoryContext,
     nested_story: fn() -> Option<DynStoryContext>,
 }
@@ -61,7 +63,7 @@ impl DynStep {
     pub const fn new(
         step_text: fn() -> String,
         step_id: &'static str,
-        args: fn() -> Box<dyn Iterator<Item = DynStepArg> + Send>,
+        args: fn() -> Box<dyn Iterator<Item = DynStepArg> + Send + Sync>,
         story: fn() -> DynStoryContext,
         nested_story: fn() -> Option<DynStoryContext>,
     ) -> Self {
@@ -119,15 +121,16 @@ impl Step for DynStep {
 
     fn args(
         &self,
-    ) -> impl Iterator<Item = impl crate::step::StepArg + Send + 'static> + Send + 'static {
+    ) -> impl Iterator<Item = impl crate::step::StepArg + Send + Sync + 'static> + Send + Sync + 'static
+    {
         (self.args)()
     }
 
-    fn story(&self) -> impl StoryContext<Step = Self> + Send + 'static {
+    fn story(&self) -> impl StoryContext<Step = Self> + Send + Sync + 'static {
         (self.story)()
     }
 
-    fn nested_story(&self) -> Option<impl StoryContext + Send + 'static> {
+    fn nested_story(&self) -> Option<impl StoryContext + Send + Sync + 'static> {
         (self.nested_story)()
     }
 }
