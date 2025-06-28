@@ -43,6 +43,7 @@ trait HelloWorld3 {
     fn say_hello_world();
 }
 
+#[allow(dead_code)]
 pub struct Env;
 
 impl HelloWorld for Env {

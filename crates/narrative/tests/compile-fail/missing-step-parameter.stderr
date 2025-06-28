@@ -1,0 +1,150 @@
+error: macros that expand to items must be delimited with braces or followed by a semicolon
+ --> tests/compile-fail/missing-step-parameter.rs:4:30
+  |
+4 |     fn perform_action(&self, action: &str); // Missing 'target' parameter
+  |                              ^^^^^^
+  |
+help: change the delimiters to curly braces
+  |
+4 -     fn perform_action(&self, action: &str); // Missing 'target' parameter
+4 +     fn perform_action(&self, {}: &str); // Missing 'target' parameter
+  |
+help: add a semicolon
+  |
+4 |     fn perform_action(&self, action;: &str); // Missing 'target' parameter
+  |                                    +
+
+error: No attr arg or assignment found
+ --> tests/compile-fail/missing-step-parameter.rs:4:30
+  |
+4 |     fn perform_action(&self, action: &str); // Missing 'target' parameter
+  |                              ^^^^^^
+
+error[E0425]: cannot find value `action` in this scope
+ --> tests/compile-fail/missing-step-parameter.rs:4:30
+  |
+4 |     fn perform_action(&self, action: &str); // Missing 'target' parameter
+  |                              ^^^^^^ not found in this scope
+  |
+  = help: consider importing one of these items:
+          crate::mod_MissingParameterStory::arg_values::perform_action::action
+          crate::mod_MissingParameterStory::args::perform_action::action
+
+error[E0599]: no method named `value` found for enum `mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | method not found in `mod_MissingParameterStory::args::perform_action`
+  | method `value` not found for this enum
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `value`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `name` found for enum `mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | method not found in `mod_MissingParameterStory::args::perform_action`
+  | method `name` not found for this enum
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `name`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `ty` found for enum `mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | method not found in `mod_MissingParameterStory::args::perform_action`
+  | method `ty` not found for this enum
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `ty`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `expr` found for enum `mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | method not found in `mod_MissingParameterStory::args::perform_action`
+  | method `expr` not found for this enum
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `expr`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `to_dyn` found for enum `mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | method not found in `mod_MissingParameterStory::args::perform_action`
+  | method `to_dyn` not found for this enum
+  |
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `name` found for reference `&mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mod_MissingParameterStory::args::perform_action`
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `name`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `ty` found for reference `&mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mod_MissingParameterStory::args::perform_action`
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `ty`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `expr` found for reference `&mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mod_MissingParameterStory::args::perform_action`
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `expr`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `value` found for reference `&mod_MissingParameterStory::args::perform_action` in the current scope
+ --> tests/compile-fail/missing-step-parameter.rs:1:1
+  |
+1 | #[narrative::story("Story with missing step parameter")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mod_MissingParameterStory::args::perform_action`
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `value`, perhaps you need to implement one of them:
+          candidate #1: `narrative::step::StepArg`
+          candidate #2: `narrative::story::StoryConst`
+  = note: this error originates in the attribute macro `narrative::story` (in Nightly builds, run with -Z macro-backtrace for more info)

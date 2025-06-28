@@ -76,7 +76,7 @@ impl ItemStory {
     pub(crate) fn generate_const_bindings(
         &self,
         expr: &Expr,
-    ) -> impl Iterator<Item = ConstBinding> {
+    ) -> impl Iterator<Item = ConstBinding<'_>> {
         // Visitor to find constants used in an expression
         struct ConstUsageVisitor<'a> {
             known_consts: &'a BTreeSet<String>,
@@ -118,7 +118,7 @@ impl ItemStory {
                     let mut extracted = collect_format_args(&format);
                     let Ok(args) = syn::parse2::<FormatArgs>(mac.tokens.clone()) else {
                         // This case format syntax should be wrong, so that rust-analyzer should report an error.
-                        eprintln!("format syntax is wrong: {:?}", mac);
+                        eprintln!("format syntax is wrong: {mac:?}");
                         return;
                     };
                     for arg in args.0 {

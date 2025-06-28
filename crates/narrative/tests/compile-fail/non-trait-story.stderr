@@ -1,0 +1,5 @@
+error: expected `trait`
+ --> tests/compile-fail/non-trait-story.rs:2:1
+  |
+2 | struct NotATrait {
+  | ^^^^^^

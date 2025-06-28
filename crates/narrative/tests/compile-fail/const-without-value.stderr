@@ -1,0 +1,5 @@
+error: in a story, all consts must have a value
+ --> tests/compile-fail/const-without-value.rs:5:5
+  |
+5 |     #[step("When using const")]
+  |     ^

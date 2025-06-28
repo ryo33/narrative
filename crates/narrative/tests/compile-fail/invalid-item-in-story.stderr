@@ -1,0 +1,5 @@
+error: expected a step, trait, struct, enum, or let
+ --> tests/compile-fail/invalid-item-in-story.rs:4:5
+  |
+4 |     type SomeType = String;
+  |     ^^^^
