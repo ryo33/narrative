@@ -26,7 +26,13 @@ pub fn generate(input: &ItemStory) -> TokenStream {
         }
     });
     quote! {
+        #[diagnostic::on_unimplemented(
+            message = "the type `{Self}` cannot be used in this story",
+            label = "this type is not allowed in stories",
+            note = "only types from the standard library or types defined within the story are allowed"
+        )]
         trait LocalType {}
+        #[diagnostic::do_not_recommend]
         impl <T: narrative::IndependentType> LocalType for T {}
         #(#local_type_impls)*
     }
@@ -48,7 +54,13 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
+            #[diagnostic::on_unimplemented(
+                message = "the type `{Self}` cannot be used in this story",
+                label = "this type is not allowed in stories",
+                note = "only types from the standard library or types defined within the story are allowed"
+            )]
             trait LocalType {}
+            #[diagnostic::do_not_recommend]
             impl <T: narrative::IndependentType> LocalType for T {}
         };
         assert_eq!(actual.to_string(), expected.to_string());
@@ -68,7 +80,13 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
+            #[diagnostic::on_unimplemented(
+                message = "the type `{Self}` cannot be used in this story",
+                label = "this type is not allowed in stories",
+                note = "only types from the standard library or types defined within the story are allowed"
+            )]
             trait LocalType {}
+            #[diagnostic::do_not_recommend]
             impl <T: narrative::IndependentType> LocalType for T {}
             impl LocalType for UserId {}
             impl LocalType for UserKind {}
@@ -91,7 +109,13 @@ mod tests {
         };
         let actual = generate(&input);
         let expected = quote! {
+            #[diagnostic::on_unimplemented(
+                message = "the type `{Self}` cannot be used in this story",
+                label = "this type is not allowed in stories",
+                note = "only types from the standard library or types defined within the story are allowed"
+            )]
             trait LocalType {}
+            #[diagnostic::do_not_recommend]
             impl <T: narrative::IndependentType> LocalType for T {}
             impl <T: LocalType> LocalType for UserId<T> {}
             impl <T: Clone + LocalType> LocalType for UserKind<T> {}
