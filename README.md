@@ -21,13 +21,13 @@ end-to-end testing, its simplicity supports a variety of use cases.
 
 Key terms in this library are:
 
-- **Story**: a sequence of steps, which is written as a trait
+- **Story**: a sequence of steps, written as a trait
 - **Step**: a single action or assertion in a story
-- **Story Trait**: a macro-generated trait that represents a story. it has a
-  method for each step.
-- **Story Context**: a struct that holds the all related information or data of
-  a story.
-- **Story Env**: a data structure that implements a story trait.
+- **Story Trait**: a macro-generated trait that represents a story, with a
+  method for each step
+- **Story Context**: a struct that holds metadata about a story and provides
+  methods to run it
+- **Story Env**: a struct that implements a story trait
 
 ## Usage
 
@@ -55,13 +55,12 @@ Wow, it's neat!
 3. Implement the story in Rust.
 
 ```rust
-pub struct MyFirstStoryImpl {
-    apples: u8,
-    oranges: u8,
-};
+struct MyFirstStoryEnv {
+    sum: u32,
+}
 
-impl MyFirstStory for MyFirstStoryImpl {
-    type Error = ();
+impl MyFirstStory for MyFirstStoryEnv {
+    type Error = std::convert::Infallible;
 
     fn as_a_user(&mut self) -> Result<(), Self::Error> {
         println!("Hi, I'm a user");
@@ -69,17 +68,17 @@ impl MyFirstStory for MyFirstStoryImpl {
     }
 
     fn have_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
-        self.apples = count;
+        self.sum += count;
         Ok(())
     }
 
     fn have_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
-        self.oranges = count;
+        self.sum += count;
         Ok(())
     }
 
     fn should_have_three_fruits(&mut self, total: u32) -> Result<(), Self::Error> {
-        assert_eq!(self.apples + self.oranges, total);
+        assert_eq!(self.sum, total);
         Ok(())
     }
 }
@@ -91,134 +90,206 @@ the declaration, but it's fine.
 4. Use the story in your code.
 
 ```rust
-fn main() {
-    // Create your story implementation (the "env")
-    let mut env = MyFirstStoryImpl { apples: 0, oranges: 0 };
+use narrative::story::RunStory;
 
-    // Run the entire story with the default runner
-    let result = MyFirstStory::context().run_story(&mut env);
+#[test]
+fn test() {
+    let mut env = MyFirstStoryEnv { sum: 0 };
+    MyFirstStoryContext.run_story(&mut env).unwrap();
+}
+```
 
-    // Or run with a custom runner
-    use narrative::runner::DefaultStoryRunner;
-    // This is actually the default runner, so this is the same as the above
-    let mut runner = DefaultStoryRunner;
-    let result = MyFirstStory::context()
-        .run_story_with_runner(&mut env, &mut runner);
+The `#[narrative::story]` macro generates a `MyFirstStoryContext` struct that
+implements `StoryContext`, which provides methods to run the story and introspect
+its structure.
 
-    // Step-by-step execution
-    let context = MyFirstStory::context();
-    for step in context.steps() {
-        // Run the step and handle nested stories
-        let step_result = step.run(&mut env);
-        // Or with a runner
-        let runner_step_result = step.run_with_runner(&mut env, &mut runner);
+### Features
+
+#### Async support
+
+Both sync and async traits are defined automatically. Prefix the trait name with
+`Async` to implement the async version.
+
+```rust
+impl AsyncMyFirstStory for MyFirstStoryEnv {
+    type Error = std::convert::Infallible;
+
+    async fn as_a_user(&mut self) -> Result<(), Self::Error> {
+        // async implementation
+        Ok(())
     }
+    // ... other async methods
+}
+
+#[test]
+fn test_async() {
+    use narrative::story::RunStoryAsync;
+    let mut env = MyFirstStoryEnv { sum: 0 };
+    futures::executor::block_on(MyFirstStoryContext.run_story_async(&mut env)).unwrap();
+}
+```
+
+#### Constants
+
+Define constants in the story trait to use in step text and arguments.
+
+```rust
+#[narrative::story("User Story")]
+trait UserStory {
+    const NAME: &str = "Alice";
+    const ID: &str = "user123";
+
+    #[step("User: {NAME}")]
+    fn greet_user();
+
+    #[step("Login as {name}", name = NAME)]
+    fn login(name: &str);
+
+    #[step("Visit profile", url = format!("https://example.com/{ID}"))]
+    fn visit_profile(url: String);
+}
+```
+
+#### Custom data types
+
+Use `#[narrative::local_type_for]` to define custom types for step arguments.
+This keeps stories independent from implementation details while leveraging Rust's
+type system.
+
+```rust
+#[narrative::story("User Management")]
+trait UserStory {
+    #[step("User {id:?} logs in as {role:?}", id = UserId::new("user123"), role = UserRole::Admin)]
+    fn user_logs_in(id: UserId, role: UserRole);
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[narrative::local_type_for(UserStory)]
+pub struct UserId(&'static str);
+
+impl UserId {
+    pub const fn new(id: &'static str) -> Self {
+        Self(id)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[narrative::local_type_for(UserStory)]
+pub enum UserRole {
+    Admin,
+    User,
+}
+```
+
+Types marked with `#[narrative::local_type_for]` can only be used in the specified
+story, preventing coupling. Standard library types and common third-party types
+(with `serde::Serialize`) like `uuid::Uuid`, `chrono::DateTime`, etc., can be used
+directly without this attribute.
+
+#### Sub stories
+
+Stories can be composed by nesting them as steps. The parent step returns the
+sub story implementation.
+
+```rust
+#[narrative::story("Setup")]
+trait Setup {
+    #[step("Initialize database")]
+    fn init_db();
+}
+
+#[narrative::story("User Test")]
+trait UserTest {
+    #[step(story: Setup, "Run setup")]
+    fn setup();
+
+    #[step("Test user creation")]
+    fn test_user();
+}
+
+impl UserTest for Env {
+    type Error = std::convert::Infallible;
+
+    fn setup(&mut self) -> Result<impl Setup<Error = Self::Error>, Self::Error> {
+        Ok(SetupEnv { /* ... */ })
+    }
+
+    fn test_user(&mut self) -> Result<(), Self::Error> {
+        // test implementation
+        Ok(())
+    }
+}
+```
+
+#### Custom runners
+
+Implement `StoryRunner` or `AsyncStoryRunner` to customize story execution,
+add logging, reporting, or other cross-cutting concerns.
+
+```rust
+use narrative::runner::StoryRunner;
+
+struct LoggingRunner;
+
+impl<E> StoryRunner<E> for LoggingRunner {
+    fn start_story(&mut self, story: impl narrative::story::StoryContext) -> Result<(), E> {
+        println!("Starting: {}", story.story_title());
+        Ok(())
+    }
+
+    fn run_step<T, S>(&mut self, step: T, state: &mut S) -> Result<(), E>
+    where
+        T: narrative::step::Step + narrative::step::Run<S, E>,
+    {
+        println!("Running: {}", step.step_text());
+        step.run_with_runner(state, self)
+    }
+
+    // ... other methods
+}
+
+#[test]
+fn test_with_runner() {
+    let mut env = MyFirstStoryEnv { sum: 0 };
+    let mut runner = LoggingRunner;
+    MyFirstStoryContext.run_story_with_runner(&mut env, &mut runner).unwrap();
 }
 ```
 
 ### Subtle but Important Points
 
-There are several points that you should know to use Narrative.
+#### Implementation details are omitted in story definitions
 
-#### Async one is also defined automatically
-
-Story doesn't have to use async keyword, and both sync and async version are
-defined automatically.
-
-```rust
-impl AsyncMyFirstStory for MyFirstStoryImpl {
-    type Error = ();
-    async fn as_a_user(&mut self) -> Result<(), Self::Error> {
-        println!("Hi, I'm a user");
-        Ok(())
-    }
-    async fn have_one_apple(&mut self, count: u32) -> Result<(), Self::Error> {
-        self.apples = count;
-        Ok(())
-    }
-    async fn have_two_oranges(&mut self, count: u32) -> Result<(), Self::Error> {
-        self.oranges = count;
-        Ok(())
-    }
-    async fn should_have_three_fruits(&mut self, total: u32) -> Result<(), Self::Error> {
-        assert_eq!(self.apples + self.oranges, total);
-        Ok(())
-    }
-}
-```
-
-#### Arguments of the step methods cannot be data structures not defined in standard library
-
-It makes your stories truely independent from any implementation.
-
-#### But, you can use trait coupled to the exact story as arguments
-
-Rust's type system gives us a power to write correct codes without loosing
-productivity, and it's the same in writing stories (in Narrative). To achieve
-the benefits without adding any dependency to the story, we can define new
-struct or trait that strongly coupled to only the story, and use it as an
-associated type of the story trait.
-
-Don't worry about the collision of the trait/struct names, it has a separate namespace
-than other stories.
-
-```rust
-#[narrative::story("This is my first story")]
-trait MyFirstStory {
-    fn data() {
-        struct UserName(String);
-
-        trait UserId {
-            /// Generate a new user id with random uuid v4.
-            fn new_v4() -> Self;
-        }
-    }
-
-    const user_id: UserId = Self::UserId::new_v4();
-
-    #[step("I'm a user with id: {id}", id = user_id, name = UserName("Alice".to_string()))]
-    fn as_a_user(id: Self::UserId, name: UserName);
-}
-```
-
-It's really weird for who knows correct Rust syntax, but it's the better one
-among alternative ideas to do the same thing, defining a new struct or trait in
-the same place.
-
-#### You can forget about the actual implementation of a story while writing a story
-
-We think that stories should not regard their actual implementations, so noisy
-details like `async`, `&self`, `&mut self`, and `-> Result<(), Self::Error>` are
-not required in the story definition. This surprising behavior can be mitigated
-by using "Implement missing members" feature of rust-analyzer.
+Stories should not be concerned with their implementation, so details like `async`,
+`&mut self`, and `-> Result<(), Self::Error>` are not required in the trait
+definition. The macro infers these from your implementation. Use rust-analyzer's
+"Implement missing members" feature to generate the correct signatures.
 
 ## Design Decisions
 
 These decisions highlight Narrative's unique aspects, especially in comparison
 to [Gauge](https://gauge.org/), a well-known end-to-end testing framework.
 
-### ~~Narrative is designed to implement stories exclusively in Rust, (though it can still be used for testing projects in other languages.)~~
+### Narrative supports multi-language step implementations
 
-~~Supporting other languages in Narrative would introduce a lot of complexity in
-its design, implementation, and usage. Narrative leverages Rust's core
-functionality and rust-analyzer to provide rich development experience. Rust
-wouldn't the best language for writing end-to-end tests for everyone, but, We
-believe that it still has advantages in this area, with a great compiler,
-robust, yet Default type system, and libraries from the vibrant
-community.~~
-
-Users can dynamically get story context, so you can implement steps in other
-programming languages, and call them in dynamic way from Rust code:
+Stories can be introspected at runtime, allowing step implementations in other
+languages. The story context provides all metadata needed to dispatch steps to
+external processes:
 
 ```rust
-fn execute_story(context: impl narrative::StoryContext) {
+use narrative::story::StoryContext;
+
+fn execute_story_externally(context: impl StoryContext) {
     for step in context.steps() {
-        send_to_external_process(step.text(), step.arguments().map(|arg| Argument {
+        let args = step.args().map(|arg| {
+            ExternalArg {
                 name: arg.name(),
                 ty: arg.ty(),
                 debug: format!("{:?}", arg.value()),
-                json: serde_json::to_string(&arg.value()).unwrap(),
-        }));
+                json: serde_json::to_value(arg.value()).unwrap(),
+            }
+        }).collect();
+        send_to_external_process(step.step_text(), args);
     }
 }
 ```
