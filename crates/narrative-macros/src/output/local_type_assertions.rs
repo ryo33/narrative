@@ -1,9 +1,12 @@
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::item_story::{ItemStory, StoryItem};
 
 pub fn generate(input: &ItemStory) -> TokenStream {
+    let story_name = &input.ident;
+    let local_type_trait = format_ident!("{}LocalType", story_name);
+
     let assertions = input.items.iter().map(|item| match item {
         StoryItem::Step(step) => {
             let args = &step.inner.sig.inputs;
@@ -32,41 +35,11 @@ pub fn generate(input: &ItemStory) -> TokenStream {
                 #(#args)*
             }
         }
-        StoryItem::Struct(item) => {
-            let fields = &item.fields;
-            let fields = fields.iter().map(|field| {
-                let ty = &field.ty;
-                quote! {
-                    assert_local_type::<#ty>();
-                }
-            });
-            quote! {
-                #(#fields)*
-            }
-        }
-        StoryItem::Enum(item) => {
-            let variants = &item.variants;
-            let variants = variants.iter().map(|variant| {
-                let fields = &variant.fields;
-                let fields = fields.iter().map(|field| {
-                    let ty = &field.ty;
-                    quote! {
-                        assert_local_type::<#ty>();
-                    }
-                });
-                quote! {
-                    #(#fields)*
-                }
-            });
-            quote! {
-                #(#variants)*
-            }
-        }
         _ => Default::default(),
     });
     quote! {
         fn _local_type_assertions() {
-            fn assert_local_type<T: LocalType>() {}
+            fn assert_local_type<T: #local_type_trait>() {}
             #(#assertions)*
         }
     }
@@ -90,7 +63,7 @@ mod tests {
         let actual = generate(&input);
         let expected = quote! {
             fn _local_type_assertions() {
-                fn assert_local_type<T: LocalType>() {}
+                fn assert_local_type<T: UserLocalType>() {}
                 assert_local_type::<UserId>();
                 assert_local_type::<&str>();
             }
@@ -111,7 +84,7 @@ mod tests {
         let actual = generate(&input);
         let expected = quote! {
             fn _local_type_assertions() {
-                fn assert_local_type<T: LocalType>() {}
+                fn assert_local_type<T: UserLocalType>() {}
                 assert_local_type::<UserId>();
                 assert_local_type::<&str>();
             }
@@ -132,88 +105,7 @@ mod tests {
         let actual = generate(&input);
         let expected = quote! {
             fn _local_type_assertions() {
-                fn assert_local_type<T: LocalType>() {}
-                assert_local_type::<&str>();
-            }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_struct_named_fields() {
-        let input = syn::parse_quote! {
-            trait User {
-                struct User {
-                    id: UserId,
-                    name: &str,
-                }
-                #[step("Step 1")]
-                fn step1();
-                #[step("Step 2")]
-                fn step2();
-            }
-        };
-        let actual = generate(&input);
-        let expected = quote! {
-            fn _local_type_assertions() {
-                fn assert_local_type<T: LocalType>() {}
-                assert_local_type::<UserId>();
-                assert_local_type::<&str>();
-            }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_struct_unnamed_fields() {
-        let input = syn::parse_quote! {
-            trait User {
-                struct User(UserId, &str);
-                #[step("Step 1")]
-                fn step1();
-                #[step("Step 2")]
-                fn step2();
-            }
-        };
-        let actual = generate(&input);
-        let expected = quote! {
-            fn _local_type_assertions() {
-                fn assert_local_type<T: LocalType>() {}
-                assert_local_type::<UserId>();
-                assert_local_type::<&str>();
-            }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_enum() {
-        let input = syn::parse_quote! {
-            trait User {
-                enum User {
-                    Admin {
-                        name: &str,
-                    },
-                    Developer {
-                        id: DeveloperId,
-                        name: &str,
-                    },
-                    Normal(UserId, &str),
-                }
-                #[step("Step 1")]
-                fn step1();
-                #[step("Step 2")]
-                fn step2();
-            }
-        };
-        let actual = generate(&input);
-        let expected = quote! {
-            fn _local_type_assertions() {
-                fn assert_local_type<T: LocalType>() {}
-                assert_local_type::<&str>();
-                assert_local_type::<DeveloperId>();
-                assert_local_type::<&str>();
-                assert_local_type::<UserId>();
+                fn assert_local_type<T: UserLocalType>() {}
                 assert_local_type::<&str>();
             }
         };

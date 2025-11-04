@@ -235,13 +235,10 @@ mod tests {
     fn parse_story() {
         let input = quote! {
             trait MyFirstStory {
-                trait UserId {
-                    fn new_v4() -> Self;
-                }
-                const user_id: UserId = UserId::new_v4();
+                const user_id: String = "test-id".to_string();
 
                 #[step("Hi, I'm a user")]
-                fn as_a_user(user_id: UserId);
+                fn as_a_user();
                 #[step("I have an apple", count = 1)]
                 fn have_one_apple(count: u32);
             }
@@ -253,11 +250,10 @@ mod tests {
             items,
         } = syn::parse2(input).expect("parse a story");
         assert_eq!(ident, "MyFirstStory");
-        assert_eq!(items.len(), 4);
-        assert!(matches!(items[0], StoryItem::Trait(_)));
-        assert!(matches!(items[1], StoryItem::Const { .. }));
+        assert_eq!(items.len(), 3);
+        assert!(matches!(items[0], StoryItem::Const { .. }));
+        assert!(matches!(items[1], StoryItem::Step(_)));
         assert!(matches!(items[2], StoryItem::Step(_)));
-        assert!(matches!(items[3], StoryItem::Step(_)));
     }
 
     fn create_test_story() -> ItemStory {

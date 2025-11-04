@@ -6,7 +6,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
 use crate::{
-    item_story::{story_const::StoryConst, ItemStory, StoryItem},
+    item_story::{story_const::StoryConst, ItemStory},
     Asyncness,
 };
 
@@ -19,30 +19,6 @@ pub fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         Asyncness::Sync => input.ident.clone(),
         Asyncness::Async => format_ident!("Async{}", input.ident),
     };
-    let types = input.items.iter().filter_map(|item| {
-        let (ident, generics) = match item {
-            StoryItem::Struct(item) => (&item.ident, &item.generics),
-            StoryItem::Enum(item) => (&item.ident, &item.generics),
-            _ => return None,
-        };
-        Some(quote! {
-            type #ident #generics;
-        })
-    });
-    let types_assigns = input.items.iter().filter_map(|item| {
-        let (ident, generics) = match item {
-            StoryItem::Struct(item) => (&item.ident, &item.generics),
-            StoryItem::Enum(item) => (&item.ident, &item.generics),
-            _ => return None,
-        };
-        let mut no_bound = generics.clone();
-        no_bound.type_params_mut().for_each(|param| {
-            param.bounds.clear();
-        });
-        Some(quote! {
-            type #ident #generics = #ident #no_bound;
-        })
-    });
     let consts = input.consts().map(|StoryConst { raw, .. }| {
         let ident = &raw.ident;
         let ty = &raw.ty;
@@ -53,13 +29,11 @@ pub fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
     let consts_assigns = input.consts().map(|StoryConst { raw, .. }| raw);
     quote! {
         pub trait #trait_ident {
-            #(#types)*
             #(#consts)*
             type Context: narrative::story::StoryContext;
             const CONTEXT: Self::Context;
         }
         impl<T: #story_trait_ident> #trait_ident for T {
-            #(#types_assigns)*
             #(#consts_assigns)*
             type Context = StoryContext;
             const CONTEXT: StoryContext = StoryContext;
@@ -96,67 +70,6 @@ mod tests {
         assert_eq!(actual.to_string(), expected.to_string());
     }
 
-    #[test]
-    fn test_with_data_types() {
-        let story_syntax = syn::parse_quote! {
-            trait User {
-                struct UserId;
-                enum UserKind {}
-                trait UserTrait {}
-                #[step("Step 1")]
-                fn step1();
-                #[step("Step 2")]
-                fn step2();
-            }
-        };
-        let actual = generate(&story_syntax, Asyncness::Sync);
-        let expected = quote! {
-            pub trait BaseTrait {
-                type UserId;
-                type UserKind;
-                type Context: narrative::story::StoryContext;
-                const CONTEXT: Self::Context;
-            }
-            impl<T: User> BaseTrait for T {
-                type UserId = UserId;
-                type UserKind = UserKind;
-                type Context = StoryContext;
-                const CONTEXT: StoryContext = StoryContext;
-            }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_with_generics() {
-        let story_syntax = syn::parse_quote! {
-            trait User {
-                struct UserId<T>(T);
-                enum UserKind<T: Clone> {}
-                trait UserTrait<T> {}
-                #[step("Step 1")]
-                fn step1();
-                #[step("Step 2")]
-                fn step2();
-            }
-        };
-        let actual = generate(&story_syntax, Asyncness::Sync);
-        let expected = quote! {
-            pub trait BaseTrait {
-                type UserId<T>;
-                type UserKind<T: Clone>;
-                type Context: narrative::story::StoryContext;
-                const CONTEXT: Self::Context;
-            }
-            impl<T: User> BaseTrait for T {
-                type UserId<T> = UserId<T>;
-                type UserKind<T: Clone> = UserKind<T>;
-                type Context = StoryContext;
-                const CONTEXT: StoryContext = StoryContext;
-            }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
-    }
 
     #[test]
     fn test_async() {

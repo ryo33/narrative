@@ -22,6 +22,61 @@ pub fn story(
     process_story(attr, story).into()
 }
 
+#[proc_macro_attribute]
+/// Marks a data type as a local type for a specific story.
+/// This implements both `IndependentType` and `<StoryName>LocalType` for the type.
+pub fn local_type_for(
+    attr: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let story_name = parse_macro_input!(attr as syn::Ident);
+    let input_item = parse_macro_input!(input as syn::Item);
+
+    let (type_name, generics) = match &input_item {
+        syn::Item::Struct(item) => (&item.ident, &item.generics),
+        syn::Item::Enum(item) => (&item.ident, &item.generics),
+        _ => {
+            return syn::Error::new_spanned(
+                input_item,
+                "local_type_for can only be applied to structs or enums",
+            )
+            .to_compile_error()
+            .into();
+        }
+    };
+
+    let local_type_trait = syn::Ident::new(&format!("{}LocalType", story_name), story_name.span());
+
+    // Add StoryOwnedType bound to all type parameters
+    let mut impl_generics = generics.clone();
+    impl_generics.type_params_mut().for_each(|param| {
+        param
+            .bounds
+            .push(syn::parse_quote!(narrative::StoryOwnedType));
+        param.bounds.push(syn::parse_quote!(#local_type_trait));
+    });
+
+    // Type parameters without bounds for usage
+    let mut type_generics = generics.clone();
+    type_generics.type_params_mut().for_each(|param| {
+        param.bounds.clear();
+    });
+
+    let output = quote::quote! {
+        #input_item
+
+        // Implement StoryOwnedType for this type
+        // This will conflict if #[local_type_for] is applied to the same type twice,
+        // preventing a data type from being a local type for multiple stories
+        impl #impl_generics narrative::StoryOwnedType for #type_name #type_generics {}
+
+        // Implement StoryLocalType for this type
+        impl #impl_generics #local_type_trait for #type_name #type_generics {}
+    };
+
+    output.into()
+}
+
 // In general, we don't do caching some intermediate results to keep the implementation simple.
 // However, we should avoid to have heavy computation in this crate, to keep the story compilation
 // fast. So, modules have their own functionality which is simple.

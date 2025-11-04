@@ -1,4 +1,4 @@
-error: expected a step, trait, struct, enum, or let
+error: expected a step or const
  --> tests/compile-fail/invalid-item-in-story.rs:4:5
   |
 4 |     type SomeType = String;

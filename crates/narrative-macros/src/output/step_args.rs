@@ -119,6 +119,7 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
         }
 
         mod arg_values {
+            use super::*;
             #(#arg_values)*
         }
         mod args {

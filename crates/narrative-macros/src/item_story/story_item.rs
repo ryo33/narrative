@@ -5,9 +5,6 @@ use super::{story_const::StoryConst, StoryStep};
 #[allow(clippy::large_enum_variant)]
 pub enum StoryItem {
     Step(StoryStep),
-    Trait(syn::ItemTrait),
-    Struct(syn::ItemStruct),
-    Enum(syn::ItemEnum),
     Const(StoryConst),
 }
 
@@ -15,12 +12,6 @@ impl Parse for StoryItem {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if let Ok(step) = input.parse().map(Self::Step) {
             Ok(step)
-        } else if let Ok(trait_) = input.parse().map(Self::Trait) {
-            Ok(trait_)
-        } else if let Ok(struct_) = input.parse().map(Self::Struct) {
-            Ok(struct_)
-        } else if let Ok(enum_) = input.parse().map(Self::Enum) {
-            Ok(enum_)
         } else if let Ok(const_) = input.parse::<syn::TraitItemConst>() {
             let Some(default) = const_.default.clone() else {
                 return Err(input.error("in a story, all consts must have a value"));
@@ -31,7 +22,7 @@ impl Parse for StoryItem {
             }))
         } else {
             // I want to return more helpful error by looking ahead some tokens.
-            Err(input.error("expected a step, trait, struct, enum, or let"))
+            Err(input.error("expected a step or const"))
         }
     }
 }
@@ -54,18 +45,6 @@ mod tests {
         assert_eq!(step.inner.sig.ident, "as_a_user");
     }
 
-    #[test]
-    fn parse_trait() {
-        let input = quote! {
-            trait UserId {
-                fn new_v4() -> Self;
-            }
-        };
-        let StoryItem::Trait(trait_) = syn::parse2(input).unwrap() else {
-            panic!("Expected a trait");
-        };
-        assert_eq!(trait_.ident, "UserId");
-    }
 
     #[test]
     fn parse_const() {

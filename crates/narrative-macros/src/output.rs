@@ -1,7 +1,3 @@
-mod derive_attr;
-mod enum_def;
-mod struct_def;
-mod trait_def;
 
 // Separation of impls and assertions leads not only simple implementation but also good error
 // messages that indicate an outer dependency.
@@ -23,7 +19,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 
 use crate::{
-    item_story::{ItemStory, StoryItem},
+    item_story::ItemStory,
     story_attr_syntax::StoryAttr,
     Asyncness,
 };
@@ -46,12 +42,7 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     let local_type_assertions = local_type_assertions::generate(item);
     let dummy_environment = dummy_environment::generate(item, Asyncness::Sync);
     let async_dummy_environment = dummy_environment::generate(item, Asyncness::Async);
-    let definitions = item.items.iter().filter_map(|item| match item {
-        StoryItem::Struct(item) => Some(struct_def::generate(item)),
-        StoryItem::Enum(item) => Some(enum_def::generate(item)),
-        StoryItem::Trait(item) => Some(trait_def::generate(item)),
-        _ => None,
-    });
+    let local_type_trait = format_ident!("{}LocalType", ident);
     quote! {
         #[allow(non_snake_case)]
         mod #mod_ident {
@@ -70,7 +61,6 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
             #local_type_assertions
             #dummy_environment
             #async_dummy_environment
-            #(#definitions)*
         }
         #[allow(unused_imports)]
         use narrative::prelude::*;
@@ -80,6 +70,8 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
         pub use #mod_ident::#async_ident;
         #[allow(unused_imports)]
         pub use #mod_ident::StoryContext as #context_ident;
+        #[allow(unused_imports)]
+        pub use #mod_ident::#local_type_trait;
         pub use #mod_ident::ContextExt as _;
         pub use #mod_ident::AsyncContextExt as _;
         pub use #mod_ident::BaseTrait as _;

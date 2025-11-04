@@ -1,29 +1,29 @@
 error: macros that expand to items must be delimited with braces or followed by a semicolon
  --> tests/compile-fail/missing-step-parameter.rs:4:30
   |
-4 |     fn perform_action(&self, action: &str); // Missing 'target' parameter
+4 |     fn perform_action(&self, action: &str); // Missing 'action' parameter
   |                              ^^^^^^
   |
 help: change the delimiters to curly braces
   |
-4 -     fn perform_action(&self, action: &str); // Missing 'target' parameter
-4 +     fn perform_action(&self, {}: &str); // Missing 'target' parameter
+4 -     fn perform_action(&self, action: &str); // Missing 'action' parameter
+4 +     fn perform_action(&self, {}: &str); // Missing 'action' parameter
   |
 help: add a semicolon
   |
-4 |     fn perform_action(&self, action;: &str); // Missing 'target' parameter
+4 |     fn perform_action(&self, action;: &str); // Missing 'action' parameter
   |                                    +
 
 error: No attr arg or assignment found
  --> tests/compile-fail/missing-step-parameter.rs:4:30
   |
-4 |     fn perform_action(&self, action: &str); // Missing 'target' parameter
+4 |     fn perform_action(&self, action: &str); // Missing 'action' parameter
   |                              ^^^^^^
 
 error[E0425]: cannot find value `action` in this scope
  --> tests/compile-fail/missing-step-parameter.rs:4:30
   |
-4 |     fn perform_action(&self, action: &str); // Missing 'target' parameter
+4 |     fn perform_action(&self, action: &str); // Missing 'action' parameter
   |                              ^^^^^^ not found in this scope
   |
   = help: consider importing one of these items:
