@@ -1,28 +1,28 @@
 [package]
 name = "narrative"
 version = "0.10.0"
-edition = "2021"
+edition = "2024"
 description = "An immensely simple library for story-driven development"
-categories = ["development-tools::testing"]
-keywords = ["atdd", "bdd", "story-driven", "testing"]
-license = "MIT OR Apache-2.0"
 readme = "../../README.md"
 repository = "https://github.com/ryo33/narrative"
+license = "MIT OR Apache-2.0"
+keywords = ["atdd", "bdd", "story-driven", "testing"]
+categories = ["development-tools::testing"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-narrative-macros = { version = "0.10.0", path = "../narrative-macros" }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+erased-serde = { version = "0.4" }
+narrative-macros = { path = "../narrative-macros", version = "0.10.0" }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", optional = true }
-chrono = { version = "0.4", optional = true, features = ["serde"] }
-uuid = { version = "1", optional = true, features = ["serde"] }
-erased-serde = { version = "0.4" }
+uuid = { version = "1", features = ["serde"], optional = true }
 
 [dev-dependencies]
 trybuild = "1"
 
 [features]
-serde_json = ["dep:serde_json"]
 chrono = ["dep:chrono"]
+serde_json = ["dep:serde_json"]
 uuid = ["dep:uuid"]

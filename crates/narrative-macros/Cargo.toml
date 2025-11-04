@@ -1,29 +1,29 @@
 [package]
 name = "narrative-macros"
 version = "0.10.0"
-edition = "2021"
+edition = "2024"
 description = "Procedural macros for the narrative crate"
-categories = []
-keywords = []
-license = "MIT OR Apache-2.0"
 readme = "../../README.md"
 repository = "https://github.com/ryo33/narrative"
+license = "MIT OR Apache-2.0"
+keywords = []
+categories = []
 
 [lib]
 proc-macro = true
 
 [dependencies]
+prettyplease = "0.2"
 proc-macro2 = "1"
 quote = "1"
 # extra-traits for PartialEq of Pat
 syn = { version = "2", features = [
-	"full",
-	"parsing",
-	"extra-traits",
-	"visit",
-	"visit-mut",
+  "extra-traits",
+  "full",
+  "parsing",
+  "visit",
+  "visit-mut",
 ] }
-prettyplease = "0.2"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

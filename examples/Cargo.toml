@@ -1,20 +1,20 @@
 [package]
 name = "narrative-examples"
-edition = "2021"
+edition = "2024"
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-narrative = { path = "../crates/narrative", features = [
-	"serde_json",
-	"chrono",
-	"uuid",
-] }
+chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
+narrative = { path = "../crates/narrative", features = [
+  "chrono",
+  "serde_json",
+  "uuid",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["serde"] }
 
 [dev-dependencies]

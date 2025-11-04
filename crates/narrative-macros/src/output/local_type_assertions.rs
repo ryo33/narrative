@@ -15,17 +15,16 @@ pub fn generate(input: &ItemStory) -> TokenStream {
                     syn::FnArg::Typed(pat_type) => &pat_type.ty,
                     _ => return Default::default(),
                 };
-                if let syn::Type::Path(path) = ty.as_ref() {
-                    if path
+                if let syn::Type::Path(path) = ty.as_ref()
+                    && path
                         .path
                         .segments
                         .first()
                         .expect("not empty type path")
                         .ident
                         == "Self"
-                    {
-                        return Default::default();
-                    }
+                {
+                    return Default::default();
                 }
                 quote! {
                     assert_local_type::<#ty>();
