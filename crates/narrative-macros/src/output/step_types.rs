@@ -207,7 +207,6 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
             }
         })
         .collect();
-    let const_bindings = step.generate_const_bindings(story);
     let extracted_format_args = step.extract_format_args();
 
     // Collect format args from step attributes first
@@ -267,7 +266,6 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
     let (run, run_async) = if step.has_sub_story() {
         (
             quote! {
-                #(#const_bindings)*
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
                 let story = sub_story.get_context();
@@ -275,7 +273,6 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
                 Ok(())
             },
             quote! {
-                #(#const_bindings)*
                 #(#step_args_assignments)*
                 let mut sub_story = T::#step_name(story #(,#args)*)?;
                 let story = sub_story.get_context();
@@ -286,12 +283,10 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
     } else {
         (
             quote! {
-                #(#const_bindings)*
                 #(#step_args_assignments)*
                 T::#step_name(story #(,#args)*)
             },
             quote! {
-                #(#const_bindings)*
                 #(#step_args_assignments)*
                 T::#step_name(story #(,#args)*).await
             },
@@ -733,7 +728,6 @@ mod tests {
         assert_eq!(
             actual.run.to_string(),
             quote! {
-                let MY_CONST: i32 = 10;
                 let param: i32 = MY_CONST * 2;
                 T::my_step(story, param)
             }
@@ -744,7 +738,6 @@ mod tests {
         assert_eq!(
             actual.run_async.to_string(),
             quote! {
-                let MY_CONST: i32 = 10;
                 let param: i32 = MY_CONST * 2;
                 T::my_step(story, param).await
             }

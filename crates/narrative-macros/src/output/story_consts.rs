@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub(crate) fn generate(story: &ItemStory) -> TokenStream {
+    let const_defs = story.consts().map(|item| item.to_pub_const());
     let const_names = story
         .consts()
         .map(|item| &item.raw.ident)
@@ -117,6 +118,8 @@ pub(crate) fn generate(story: &ItemStory) -> TokenStream {
     };
 
     quote! {
+        #(#const_defs)*
+
         #[derive(Clone, Copy)]
         #[allow(non_camel_case_types)]
         pub enum StoryConst {
@@ -216,6 +219,8 @@ mod tests {
         assert_eq!(
             actual.to_string(),
             quote! {
+                pub const NUMBER: u32 = 42;
+
                 #[derive(Clone, Copy)]
                 #[allow(non_camel_case_types)]
                 pub enum StoryConst {

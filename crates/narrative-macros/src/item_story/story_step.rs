@@ -7,8 +7,6 @@ use crate::{
     step_attr_syntax::{StepAttr, StoryType},
 };
 
-use super::{ConstBinding, ItemStory};
-
 pub struct StoryStep {
     pub attr: StepAttr,
     pub inner: syn::TraitItemFn,
@@ -73,19 +71,6 @@ impl StoryStep {
     /// Gets the path to the sub-story type if this is a sub-story step
     pub(crate) fn sub_story_path(&self) -> Option<&StoryType> {
         self.attr.story_type.as_ref()
-    }
-
-    pub(crate) fn generate_const_bindings<'a>(
-        &'a self,
-        story: &'a ItemStory,
-    ) -> Vec<ConstBinding<'a>> {
-        let mut vec: Vec<_> = self
-            .attr_args()
-            .flat_map(|(_, expr)| story.generate_const_bindings(expr))
-            .collect();
-        vec.sort_by_key(|binding| binding.ident);
-        vec.dedup_by_key(|binding| binding.ident);
-        vec
     }
 }
 

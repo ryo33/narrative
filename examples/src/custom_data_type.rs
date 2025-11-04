@@ -12,8 +12,9 @@ impl StoryLocalType for ExampleMyType {}
 // Story trait that will generate UserStoryLocalType
 #[narrative::story("User Story with Custom Data Types")]
 trait UserStory {
-    // TODO: Make this const once the consts-everywhere and lazy-consts feature are implemented.
-    #[step("User {id:?} logs in as {role:?}", id = UserId::new("user123".to_string()), role = UserRole::Admin)]
+    const USER_ID: UserId = UserId::new("user123");
+
+    #[step("User {id:?} logs in as {role:?}", id = USER_ID, role = UserRole::Admin)]
     fn user_logs_in(id: UserId, role: UserRole);
 
     #[step("User has access to admin panel", has_access = true)]
@@ -24,10 +25,10 @@ trait UserStory {
 // This implements both IndependentType and UserStoryLocalType
 #[derive(Debug, Clone, serde::Serialize)]
 #[narrative::local_type_for(UserStory)]
-pub struct UserId(String);
+pub struct UserId(&'static str);
 
 impl UserId {
-    pub fn new(id: String) -> Self {
+    pub const fn new(id: &'static str) -> Self {
         Self(id)
     }
 }
@@ -43,7 +44,7 @@ pub enum UserRole {
 }
 
 struct UserStoryEnv {
-    current_user_id: Option<String>,
+    current_user_id: Option<&'static str>,
     current_role: Option<UserRole>,
 }
 

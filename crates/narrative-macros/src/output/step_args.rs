@@ -267,8 +267,6 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
                 return Err(quote_spanned! { ident.span() => compile_error!("No attr arg or assignment found") });
             };
 
-        let const_bindings = story.generate_const_bindings(expr).collect::<Vec<_>>();
-
         let static_ty = make_static(ty);
 
         let ty_str = pretty_print_type(ty);
@@ -282,7 +280,6 @@ fn generate_arg_impl(story: &ItemStory, step: &StoryStep) -> TokenStream {
                 pub const __EXPR: &str = #expr_str;
                 #[inline]
                 pub fn value() -> #static_ty {
-                    #(#const_bindings)*
                     #expr
                 }
                 pub const DYN_STEP_ARG: narrative::step::DynStepArg = narrative::step::DynStepArg::new(
@@ -691,7 +688,6 @@ mod tests {
                     pub const __EXPR: &str = "MY_CONST * 2";
                     #[inline]
                     pub fn value() -> i32 {
-                        let MY_CONST: i32 = 10;
                         MY_CONST * 2
                     }
                     pub const DYN_STEP_ARG: narrative::step::DynStepArg = narrative::step::DynStepArg::new(
@@ -762,7 +758,6 @@ mod tests {
                     pub const __EXPR: &str = "format!(\"const: {MY_CONST}\")";
                     #[inline]
                     pub fn value() -> String {
-                        let MY_CONST: i32 = 10;
                         format!("const: {MY_CONST}")
                     }
                     pub const DYN_STEP_ARG: narrative::step::DynStepArg = narrative::step::DynStepArg::new(

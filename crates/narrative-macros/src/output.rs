@@ -1,4 +1,3 @@
-
 // Separation of impls and assertions leads not only simple implementation but also good error
 // messages that indicate an outer dependency.
 mod local_type_assertions;
@@ -18,11 +17,7 @@ mod dummy_environment;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 
-use crate::{
-    item_story::ItemStory,
-    story_attr_syntax::StoryAttr,
-    Asyncness,
-};
+use crate::{item_story::ItemStory, story_attr_syntax::StoryAttr, Asyncness};
 
 pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     let mod_ident = format_ident!("mod_{}", item.ident);
@@ -44,9 +39,8 @@ pub(crate) fn generate(attr: &StoryAttr, item: &ItemStory) -> TokenStream {
     let async_dummy_environment = dummy_environment::generate(item, Asyncness::Async);
     let local_type_trait = format_ident!("{}LocalType", ident);
     quote! {
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, unused_imports)]
         mod #mod_ident {
-            #[allow(unused_imports)]
             use super::*;
             #base_trait
             #async_base_trait
