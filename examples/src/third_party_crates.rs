@@ -1,6 +1,8 @@
+use uuid::uuid;
+
 #[narrative::story("Using third party crates")]
 trait ThirdPartyCrates {
-    #[step("Generate a uuid", uuid = "14f95cf3-4302-4e59-9b49-e40cdc4c6ba3".parse().unwrap())]
+    #[step("Generate a uuid", uuid = uuid!("14f95cf3-4302-4e59-9b49-e40cdc4c6ba3"))]
     fn generate_uuid(&self, uuid: uuid::Uuid);
 
     #[step("Now is {now}", now = chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339("2025-04-28T00:00:00Z").unwrap())]
@@ -63,6 +65,6 @@ fn test_path() {
     assert_eq!(args.len(), 1);
     assert_eq!(
         format!("{:?}", args[0]),
-        r#"uuid: uuid::Uuid = "14f95cf3-4302-4e59-9b49-e40cdc4c6ba3".parse().unwrap()"#
+        r#"uuid: uuid::Uuid = uuid!("14f95cf3-4302-4e59-9b49-e40cdc4c6ba3")"#
     );
 }
