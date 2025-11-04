@@ -2,10 +2,6 @@
 
 An immensely simple library for story-driven development
 
-## !!!! NOT RELEASED YET !!!!
-
-WIP to the first release. Published to crates.io for reserve the name.
-
 ## Overview
 
 Narrative is a library dedicated to developing a whole or some part of software
