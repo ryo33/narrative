@@ -7,7 +7,7 @@ trait MyFirstStory {
     fn as_a_user();
     #[step("I have an apple", count = 1)]
     fn have_one_apple(count: u32);
-    #[step("I have {count} orages", count = 2)]
+    #[step("I have {count} oranges", count = 2)]
     fn have_two_oranges(count: u32);
     #[step("I should have {total} fruits", total = 3)]
     fn should_have_three_fruits(total: u32);
@@ -64,6 +64,6 @@ fn test_context() {
     assert_eq!(args.len(), 1);
     assert_eq!(format!("{:?}", args[0]), "count: u32 = 1");
     assert_eq!(steps[1].step_text(), "I have an apple");
-    assert_eq!(steps[2].step_text(), "I have 2 orages");
+    assert_eq!(steps[2].step_text(), "I have 2 oranges");
     assert_eq!(steps[3].step_text(), "I should have 3 fruits");
 }

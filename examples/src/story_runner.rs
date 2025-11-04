@@ -114,7 +114,7 @@ fn test() {
             "Starting story: My First Story",
             "Running step: Hi, I'm a user: Ryo",
             "Running step: I have an apple",
-            "Running step: I have 2 orages",
+            "Running step: I have 2 oranges",
             "Running step: I should have 3 fruits",
             "Ending story: My First Story",
         ]
@@ -138,7 +138,7 @@ fn test_async() {
             "Starting story: My First Story",
             "Running step: Hi, I'm a user",
             "Running step: I have an apple",
-            "Running step: I have 2 orages",
+            "Running step: I have 2 oranges",
             "Running step: I should have 3 fruits",
             "Ending story: My First Story",
         ]
