@@ -31,14 +31,6 @@ macro_rules! local {
     };
 }
 
-macro_rules! local_a {
-    ($gen1:tt; $($ty:ty),*) => {
-        $(
-            impl<'a, $gen1: SealedIndependentType> SealedIndependentType for $ty {}
-        )*
-    };
-}
-
 macro_rules! local_tuple {
     ($($ty:ident),*) => {
         impl<$($ty: SealedIndependentType),*> SealedIndependentType for ($($ty,)*) {}
@@ -102,26 +94,8 @@ local!(
     std::net::SocketAddrV4,
     std::net::SocketAddrV6
 );
-local!(T; &[T], Vec<T>, Option<T>, Box<T>, std::marker::PhantomData<T>, std::rc::Rc<T>, std::sync::Arc<T>, std::cell::RefCell<T>);
 
 local!(T; std::ops::Range<T>, std::ops::RangeFrom<T>, std::ops::RangeTo<T>, std::ops::RangeInclusive<T>, std::ops::Bound<T>);
-
-local!(T; std::collections::BTreeSet<T>, std::collections::LinkedList<T>, std::collections::VecDeque<T>, std::collections::BinaryHeap<T>);
-
-impl<K, V> SealedIndependentType for std::collections::HashMap<K, V>
-where
-    K: SealedIndependentType + PartialEq + Eq + std::hash::Hash,
-    V: SealedIndependentType + PartialEq,
-{
-}
-impl<T> SealedIndependentType for std::collections::HashSet<T> where
-    T: SealedIndependentType + PartialEq + Eq + std::hash::Hash
-{
-}
-
-local!(T, U; Result<T, U>, std::collections::BTreeMap<T, U>);
-
-local_a!(T; &'a T, std::borrow::Cow<'a,T>);
 
 local_tuple!(A);
 local_tuple!(A, B);

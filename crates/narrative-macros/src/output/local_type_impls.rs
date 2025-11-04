@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::{quote, format_ident};
+use quote::{format_ident, quote};
 
 use crate::item_story::ItemStory;
 
@@ -24,6 +24,7 @@ pub fn generate(input: &ItemStory) -> TokenStream {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_independent_type() {

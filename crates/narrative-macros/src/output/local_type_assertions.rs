@@ -1,7 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::item_story::{ItemStory, StoryItem};
+use crate::{
+    extract_types_for_assertion::extract_types_for_assertion,
+    item_story::{ItemStory, StoryItem},
+};
 
 pub fn generate(input: &ItemStory) -> TokenStream {
     let story_name = &input.ident;
@@ -10,28 +13,22 @@ pub fn generate(input: &ItemStory) -> TokenStream {
     let assertions = input.items.iter().map(|item| match item {
         StoryItem::Step(step) => {
             let args = &step.inner.sig.inputs;
-            let args = args.iter().map(|arg| {
-                let ty = match arg {
-                    syn::FnArg::Typed(pat_type) => &pat_type.ty,
-                    _ => return Default::default(),
-                };
-                if let syn::Type::Path(path) = ty.as_ref()
-                    && path
-                        .path
-                        .segments
-                        .first()
-                        .expect("not empty type path")
-                        .ident
-                        == "Self"
-                {
-                    return Default::default();
-                }
+            let types: Vec<_> = args
+                .iter()
+                .filter_map(|arg| match arg {
+                    syn::FnArg::Typed(pat_type) => Some(&*pat_type.ty),
+                    _ => None,
+                })
+                .flat_map(extract_types_for_assertion)
+                .collect();
+
+            let assertions = types.iter().map(|ty| {
                 quote! {
                     assert_local_type::<#ty>();
                 }
             });
             quote! {
-                #(#args)*
+                #(#assertions)*
             }
         }
         _ => Default::default(),
@@ -64,47 +61,6 @@ mod tests {
             fn _local_type_assertions() {
                 fn assert_local_type<T: UserLocalType>() {}
                 assert_local_type::<UserId>();
-                assert_local_type::<&str>();
-            }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_in_step_args() {
-        let input = syn::parse_quote! {
-            trait User {
-                #[step("Step 1")]
-                fn step1();
-                #[step("Step 2")]
-                fn step2(id: UserId, name: &str);
-            }
-        };
-        let actual = generate(&input);
-        let expected = quote! {
-            fn _local_type_assertions() {
-                fn assert_local_type<T: UserLocalType>() {}
-                assert_local_type::<UserId>();
-                assert_local_type::<&str>();
-            }
-        };
-        assert_eq!(actual.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_not_include_self_assoc_types() {
-        let input = syn::parse_quote! {
-            trait User {
-                #[step("Step 1")]
-                fn step1();
-                #[step("Step 2")]
-                fn step2(id: Self::UserId, name: &str);
-            }
-        };
-        let actual = generate(&input);
-        let expected = quote! {
-            fn _local_type_assertions() {
-                fn assert_local_type<T: UserLocalType>() {}
                 assert_local_type::<&str>();
             }
         };

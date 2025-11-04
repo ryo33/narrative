@@ -19,6 +19,9 @@ trait UserStory {
 
     #[step("User has access to admin panel", has_access = true)]
     fn check_admin_access(has_access: bool);
+
+    #[step("List all users", users = vec![UserId::new("user123"), UserId::new("user456")])]
+    fn list_all_users(users: Vec<UserId>);
 }
 
 // Custom data types with #[local_type_for] macro
@@ -64,6 +67,10 @@ impl UserStory for UserStoryEnv {
                 _ => assert!(!has_access),
             }
         }
+        Ok(())
+    }
+
+    fn list_all_users(&mut self, _users: Vec<UserId>) -> Result<(), Self::Error> {
         Ok(())
     }
 }
