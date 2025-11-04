@@ -1,6 +1,6 @@
 [package]
 name = "narrative"
-version = "0.12.0"
+version = "0.12.1"
 edition = "2024"
 description = "An immensely simple library for story-driven development"
 readme = "../../README.md"
