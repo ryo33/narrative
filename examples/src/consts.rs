@@ -12,6 +12,28 @@ trait Consts {
     fn format_step_in_step_text();
 }
 
+struct Env;
+
+impl Consts for Env {
+    type Error = std::convert::Infallible;
+
+    fn dummy_step(&mut self, name: &str) -> Result<(), Self::Error> {
+        assert_eq!(name, ConstsContext::NAME);
+        assert_eq!(name, Self::NAME);
+        Ok(())
+    }
+
+    fn format_step(&mut self, url: String) -> Result<(), Self::Error> {
+        assert_eq!(url, format!("https://example.com/{}", ConstsContext::ID));
+        assert_eq!(url, format!("https://example.com/{}", Self::ID));
+        Ok(())
+    }
+
+    fn format_step_in_step_text(&mut self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
+
 #[test]
 fn accessible_through_context() {
     use narrative::step::Step;
@@ -40,4 +62,10 @@ fn accessible_through_context() {
 
     assert_eq!(steps[2].args().count(), 0);
     assert_eq!(steps[2].step_text(), "use const in step text name: Ryo");
+}
+
+#[test]
+fn accessible_in_impl() {
+    let mut env = Env;
+    ConstsContext.run_story(&mut env).unwrap();
 }
