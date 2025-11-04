@@ -1,6 +1,6 @@
 [package]
 name = "narrative"
-version = "0.11.0"
+version = "0.12.0"
 edition = "2024"
 description = "An immensely simple library for story-driven development"
 readme = "../../README.md"
@@ -14,7 +14,7 @@ categories = ["development-tools::testing"]
 [dependencies]
 chrono = { version = "0.4", features = ["serde"], optional = true }
 erased-serde = { version = "0.4" }
-narrative-macros = { path = "../narrative-macros", version = "0.11.0" }
+narrative-macros = { path = "../narrative-macros", version = "0.12.0" }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", optional = true }
 uuid = { version = "1", features = ["serde"], optional = true }
