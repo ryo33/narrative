@@ -20,8 +20,8 @@ trait UserStory {
     #[step("User has access to admin panel", has_access = true)]
     fn check_admin_access(has_access: bool);
 
-    #[step("List all users", users = vec![UserId::new("user123"), UserId::new("user456")])]
-    fn list_all_users(users: Vec<UserId>);
+    #[step("List all users", users = vec![UserRecord::new("user123", "Alice", UserRole::Admin), UserRecord::new("user456", "Bob", UserRole::User)])]
+    fn list_all_users(users: Vec<UserRecord>);
 }
 
 // Custom data types with #[local_type_for] macro
@@ -44,6 +44,20 @@ pub enum UserRole {
     User,
     #[allow(dead_code)]
     Guest,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[narrative::local_type_for(UserStory)]
+pub struct UserRecord {
+    id: UserId,
+    name: &'static str,
+    role: UserRole,
+}
+
+impl UserRecord {
+    pub const fn new(id: &'static str, name: &'static str, role: UserRole) -> Self {
+        Self { id: UserId::new(id), name, role }
+    }
 }
 
 struct UserStoryEnv {
@@ -70,7 +84,10 @@ impl UserStory for UserStoryEnv {
         Ok(())
     }
 
-    fn list_all_users(&mut self, _users: Vec<UserId>) -> Result<(), Self::Error> {
+    fn list_all_users(&mut self, users: Vec<UserRecord>) -> Result<(), Self::Error> {
+        for user in users {
+            println!("User: {} ({:?})", user.name, user.id);
+        }
         Ok(())
     }
 }

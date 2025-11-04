@@ -1,0 +1,20 @@
+error[E0277]: the type `NonLocalType` cannot be used in this story
+  --> tests/compile-fail/local_type_nested.rs:15:14
+   |
+15 |     Variant2(NonLocalType),
+   |              ^^^^^^^^^^^^ this type is not allowed in stories
+   |
+help: the trait `ConstWithoutValueStoryLocalType` is not implemented for `NonLocalType`
+  --> tests/compile-fail/local_type_nested.rs:19:1
+   |
+19 | struct NonLocalType;
+   | ^^^^^^^^^^^^^^^^^^^
+   = note: only types from the standard library or types defined with #[local_type_for] are allowed
+   = help: the following other types implement trait `ConstWithoutValueStoryLocalType`:
+             LocalTypeEnum
+             LocalTypeStruct
+note: required by a bound in `_local_type_assertions_LocalTypeEnum::assert_local_type`
+  --> tests/compile-fail/local_type_nested.rs:12:29
+   |
+12 | #[narrative::local_type_for(ConstWithoutValueStory)]
+   |                             ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `assert_local_type`
