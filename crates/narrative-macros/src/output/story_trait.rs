@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::{item_story::ItemStory, output::step_fn, Asyncness};
+use crate::{Asyncness, item_story::ItemStory, output::step_fn};
 
 pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
     let ident = match asyncness {
@@ -12,7 +12,9 @@ pub(crate) fn generate(input: &ItemStory, asyncness: Asyncness) -> TokenStream {
         crate::item_story::StoryItem::Step(step) => Some(step_fn::generate(step, asyncness)),
         _ => None,
     });
+    let attrs = &input.attrs;
     quote! {
+        #(#attrs)*
         pub trait #ident {
             // no std::error::Error bound here for flexibility in use
             type Error;
@@ -63,6 +65,26 @@ mod tests {
                 type Error;
                 fn step1(&mut self) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send;
                 fn step2(&mut self, user_id: UserId) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send;
+            }
+        };
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_trait_with_doc_attr() {
+        let input = syn::parse_quote! {
+            /// This is a my first story.
+            trait MyFirstStory {
+                #[step("Step 1")]
+                fn step1();
+            }
+        };
+        let actual = generate(&input, Asyncness::Sync);
+        let expected = quote! {
+            /// This is a my first story.
+            pub trait MyFirstStory {
+                type Error;
+                fn step1(&mut self) -> Result<(), Self::Error>;
             }
         };
         assert_eq!(actual.to_string(), expected.to_string());

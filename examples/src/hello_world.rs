@@ -1,9 +1,12 @@
 use std::io::{BufWriter, Write as _};
 
+/// This is a hello world story.
 #[narrative::story("Say hello world")]
 trait HelloWorld {
+    /// This is a step to say hello.
     #[step("Say hello")]
     fn say_hello();
+    /// This is a step to say world.
     #[step("Say world")]
     fn say_world();
 }

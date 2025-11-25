@@ -8,28 +8,44 @@ use crate::{
 };
 
 pub struct StoryStep {
-    pub attr: StepAttr,
+    pub step_attr: StepAttr,
+    pub other_attrs: Vec<syn::Attribute>,
     pub inner: syn::TraitItemFn,
 }
 
 impl Parse for StoryStep {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let attr = input.parse()?;
+        let mut attrs = input.call(syn::Attribute::parse_outer)?;
+        let Some(position) = attrs.iter().position(|attr| attr.path().is_ident("step")) else {
+            return Err(syn::Error::new(
+                input.span(),
+                "expected #[step(...)] attribute",
+            ));
+        };
+        let step_attr = attrs.remove(position);
+        let step_attr = syn::parse2::<StepAttr>(quote::quote! { #step_attr })?;
         let inner = input.parse()?;
-        Ok(Self { attr, inner })
+        Ok(Self {
+            step_attr,
+            other_attrs: attrs,
+            inner,
+        })
     }
 }
 
 impl ToTokens for StoryStep {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.attr.to_tokens(tokens);
+        self.step_attr.to_tokens(tokens);
         self.inner.to_tokens(tokens);
     }
 }
 
 impl StoryStep {
     pub(crate) fn attr_args(&self) -> impl Iterator<Item = (&syn::Ident, &syn::Expr)> {
-        self.attr.args.iter().map(|arg| (&arg.ident, &arg.value))
+        self.step_attr
+            .args
+            .iter()
+            .map(|arg| (&arg.ident, &arg.value))
     }
 
     /// This ignores patterns.
@@ -61,16 +77,16 @@ impl StoryStep {
     }
 
     pub(crate) fn extract_format_args(&self) -> Vec<String> {
-        collect_format_args(&self.attr.text)
+        collect_format_args(&self.step_attr.text)
     }
 
     pub(crate) fn has_sub_story(&self) -> bool {
-        self.attr.story_type.is_some()
+        self.step_attr.story_type.is_some()
     }
 
     /// Gets the path to the sub-story type if this is a sub-story step
     pub(crate) fn sub_story_path(&self) -> Option<&StoryType> {
-        self.attr.story_type.as_ref()
+        self.step_attr.story_type.as_ref()
     }
 }
 
@@ -86,7 +102,7 @@ mod tests {
             fn step1();
         };
         let actual = syn::parse2::<StoryStep>(input).unwrap();
-        assert_eq!(actual.attr.text.value(), "Step 1".to_string());
+        assert_eq!(actual.step_attr.text.value(), "Step 1".to_string());
         assert_eq!(actual.inner.sig.ident.to_string(), "step1".to_string());
         assert!(actual.sub_story_path().is_none());
     }
@@ -98,7 +114,7 @@ mod tests {
             fn step_with_sub();
         };
         let actual = syn::parse2::<StoryStep>(input).unwrap();
-        assert_eq!(actual.attr.text.value(), "do sub story".to_string());
+        assert_eq!(actual.step_attr.text.value(), "do sub story".to_string());
         assert_eq!(
             actual.inner.sig.ident.to_string(),
             "step_with_sub".to_string()
@@ -138,5 +154,17 @@ mod tests {
             fn step_with_sub();
         };
         assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn parse_step_with_other_attrs() {
+        let input = quote! {
+            #[doc("This is a step")]
+            #[step("Step 1")]
+            fn step1();
+        };
+        let actual = syn::parse2::<StoryStep>(input).unwrap();
+        assert_eq!(actual.other_attrs.len(), 1);
+        assert!(actual.other_attrs[0].path().is_ident("doc"));
     }
 }

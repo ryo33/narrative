@@ -3,9 +3,8 @@ pub mod story_item;
 pub mod story_step;
 
 use syn::{
-    braced,
+    Token, braced,
     parse::{Parse, ParseStream},
-    Token,
 };
 
 pub use story_item::StoryItem;
@@ -14,6 +13,7 @@ pub use story_step::StoryStep;
 use self::story_const::StoryConst;
 
 pub struct ItemStory {
+    pub attrs: Vec<syn::Attribute>,
     #[allow(dead_code)]
     pub trait_token: Token![trait],
     pub ident: syn::Ident,
@@ -24,6 +24,7 @@ pub struct ItemStory {
 
 impl Parse for ItemStory {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attrs = input.call(syn::Attribute::parse_outer)?;
         let story_token = input.parse::<Token![trait]>()?;
         let ident = input.parse()?;
         let content;
@@ -33,6 +34,7 @@ impl Parse for ItemStory {
             items.push(content.parse()?);
         }
         Ok(Self {
+            attrs,
             trait_token: story_token,
             ident,
             brace_token,
@@ -83,6 +85,7 @@ mod tests {
             }
         };
         let ItemStory {
+            attrs: _,
             trait_token: _,
             ident,
             brace_token: _,
@@ -93,5 +96,30 @@ mod tests {
         assert!(matches!(items[0], StoryItem::Const { .. }));
         assert!(matches!(items[1], StoryItem::Step(_)));
         assert!(matches!(items[2], StoryItem::Step(_)));
+    }
+
+    #[test]
+    fn parse_story_with_doc_attr() {
+        let input = quote! {
+            /// This is a my first story.
+            trait MyFirstStory {
+                const user_id: String = "test-id".to_string();
+
+                #[step("Hi, I'm a user")]
+                fn as_a_user();
+            }
+        };
+        let ItemStory {
+            attrs,
+            ident,
+            items,
+            ..
+        } = syn::parse2(input).expect("parse a story with doc attr");
+        assert_eq!(ident, "MyFirstStory");
+        assert_eq!(attrs.len(), 1);
+        assert!(attrs[0].path().is_ident("doc"));
+        assert_eq!(items.len(), 2);
+        assert!(matches!(items[0], StoryItem::Const { .. }));
+        assert!(matches!(items[1], StoryItem::Step(_)));
     }
 }

@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 
 use crate::{
-    item_story::{story_const::StoryConst, ItemStory, StoryStep},
+    item_story::{ItemStory, StoryStep, story_const::StoryConst},
     output::MatchArms,
 };
 
@@ -189,10 +189,10 @@ impl ToTokens for StepDef {
 
 fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<'a> {
     let step_name = &step.inner.sig.ident;
-    let step_text = &step.attr.text;
+    let step_text = &step.step_attr.text;
     // We don't filter out unused step args here to generate unused warnings.
     let step_args_assignments: Vec<_> = step
-        .attr
+        .step_attr
         .args
         .iter()
         .map(|arg| {
@@ -211,14 +211,14 @@ fn generate_step<'a>(story: &'a ItemStory, step: &'a StoryStep) -> StepSegments<
 
     // Collect format args from step attributes first
     let attr_names = step
-        .attr
+        .step_attr
         .args
         .iter()
         .filter(|arg| extracted_format_args.contains(&arg.ident.to_string()))
         .map(|arg| arg.ident.to_string())
         .collect::<BTreeSet<_>>();
 
-    let format_args_from_attr = step.attr.args.iter().filter_map(|arg| {
+    let format_args_from_attr = step.step_attr.args.iter().filter_map(|arg| {
         if extracted_format_args.contains(&arg.ident.to_string()) {
             let value = &arg.value;
             Some((&arg.ident, quote!(#value)))
