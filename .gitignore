@@ -9,5 +9,6 @@ Cargo.lock
 !.gitignore
 !README.md
 !Cargo.toml
+!LICENSE-*
 
 !.github/*.yml

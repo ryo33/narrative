@@ -408,3 +408,12 @@ story's context in the abstraction. For instance, if a step is about clicking a
 submit button, it might be implemented as a composition of atomic logic like
 `find_element_by(id)`, `click(element)`, and `wait_for_page_load()`, and not to
 leak the context like `click_submit_button()` or `click_button("#submit")`.
+
+## License
+
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
